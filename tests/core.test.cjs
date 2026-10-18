@@ -114,7 +114,7 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
       const title=calls.find(c=>c.page===page && c.method==='text' && c.args[0]===valid.title);
       assert.ok(title.args[3].angle>0 && title.args[3].angle<90);
       assert.ok(title.color.match(/[a-f0-9]{2}/g).every(c=>parseInt(c,16)>=225));
-      const credits=calls.filter(c=>c.page===page && c.method==='text' && c.args[0]==='Test tile helper by hunsley.io');
+      const credits=calls.filter(c=>c.page===page && c.method==='text' && c.args[0]==='hunsley.io');
       assert.equal(credits.length,1);
       const credit=credits[0];
       assert.equal(credit.args[3].angle,title.args[3].angle);

@@ -256,14 +256,14 @@
       const cos = Math.cos(angle), sin = Math.sin(angle);
       doc.setFontSize(1);
       const lengthPerPoint = doc.getTextWidth(data.title);
-      const credit = "Test tile helper by hunsley.io";
+      const credit = "hunsley.io";
       const creditLengthPerPoint = doc.getTextWidth(credit);
       const heightPerPoint = 25.4 / 72;
       // Fit the rotated text's bounding box inside the cells, with space at both ends.
       let size = Math.min(120,
         width * .88 / (lengthPerPoint * cos + heightPerPoint * sin),
         height * .88 / (lengthPerPoint * sin + heightPerPoint * cos));
-      let creditSize = Math.min(14, size * .25);
+      let creditSize = Math.min(28, size * .5);
       let gap = Math.min(1, width * .01, height * .01);
       const groupLength = Math.max(lengthPerPoint * size, creditLengthPerPoint * creditSize);
       const groupHeight = heightPerPoint * (size * 1.3 + creditSize * 1.35) + gap;
