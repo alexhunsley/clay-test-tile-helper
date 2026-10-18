@@ -13,6 +13,10 @@
   const generate = document.getElementById("generate");
   const preview = document.getElementById("preview");
   const shareResult = document.getElementById("share-result");
+  const decoderButton = document.getElementById("tile-decoder");
+  const decoderDialog = document.getElementById("decoder-dialog");
+  const decoderA = document.getElementById("decoder-a");
+  const decoderB = document.getElementById("decoder-b");
   let nameCache = [];
   let submitted = false;
 
@@ -85,6 +89,34 @@
   function filename(title) {
     return title.replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "ceramic-test-tiles";
   }
+
+  function updateDecoder() {
+    const setup = readForm();
+    const result = helper.decodeTile(decoderA.value, decoderB.value, setup.count, setup.names);
+    const output = document.getElementById("decoder-result");
+    output.replaceChildren();
+    if (result.text) {
+      const first = document.createElement("strong");
+      const second = document.createElement("strong");
+      first.textContent = result.glazeNames[0];
+      second.textContent = result.glazeNames[1];
+      output.append(first, document.createTextNode(" below "), second, document.createTextNode("."));
+    }
+    document.getElementById("decoder-error").textContent = result.error;
+    for (const [key, input] of [["a", decoderA], ["b", decoderB]]) {
+      if (result.invalidFields.includes(key)) input.setAttribute("aria-invalid", "true");
+      else input.removeAttribute("aria-invalid");
+    }
+  }
+
+  decoderButton.addEventListener("click", () => {
+    updateDecoder();
+    decoderDialog.showModal();
+    decoderA.focus();
+  });
+  decoderDialog.addEventListener("input", updateDecoder);
+  document.getElementById("decoder-close").addEventListener("click", () => decoderDialog.close());
+  decoderDialog.addEventListener("close", () => decoderButton.focus());
 
   form.addEventListener("input", (event) => {
     if (event.target === fields.count) syncNames();

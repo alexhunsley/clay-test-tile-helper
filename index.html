@@ -12,6 +12,7 @@
 @media(prefers-reduced-motion:reduce){input{transition:none}}
 
 .checkbox-label{display:flex;align-items:center;gap:10px;margin:0}.checkbox-label input{width:18px;height:18px;min-height:18px;padding:0;accent-color:var(--green);flex-shrink:0}input:disabled{background:#f0f0eb;color:#888e84;cursor:not-allowed}
+.decoder-actions{grid-column:1/-1;justify-self:start;margin-top:4px}#decoder-dialog{width:420px;max-width:calc(100vw - 36px);max-height:calc(100vh - 36px);padding:28px;border:1px solid var(--line);border-radius:12px;background:#fffefa;color:var(--ink)}#decoder-dialog::backdrop{background:rgba(30,40,32,.4)}#decoder-dialog h2{font-size:22px}.decoder-code{display:flex;align-items:flex-end;gap:12px;margin:24px 0 12px}.decoder-code .field{width:82px;margin:0}.decoder-code input{text-align:center;font-size:20px}.decoder-dot{font-size:24px;padding-bottom:10px}#decoder-result{font-size:17px;margin:18px 0;overflow-wrap:anywhere}#decoder-result:empty{display:none}#decoder-close{margin:22px 0 0 auto;width:fit-content}
 </style>
 </head>
 <body>
@@ -81,9 +82,21 @@
         <div class="actions"><button id="generate" type="submit">Download PDF <span aria-hidden="true">↓</span></button><button id="preview" class="secondary" type="button">Download preview image <span aria-hidden="true">↓</span></button><button id="share" class="secondary" type="button">Share link to this setup <span aria-hidden="true">↗</span></button></div>
         <p id="form-status" role="status" aria-live="polite"></p>
         <div id="share-result" hidden><label for="share-url">Filled-form link</label><input id="share-url" type="text" readonly><p class="hint" id="share-note"></p></div>
+        <div class="decoder-actions"><button id="tile-decoder" class="secondary" type="button">Tile decoder</button></div>
       </section>
     </form>
   </main>
+  <dialog id="decoder-dialog" aria-labelledby="decoder-heading">
+    <h2 id="decoder-heading">Tile decoder</h2>
+    <div class="decoder-code">
+      <div class="field"><label for="decoder-a">Column</label><input id="decoder-a" type="text" inputmode="numeric" maxlength="3" autocomplete="off" aria-describedby="decoder-error" autofocus></div>
+      <span class="decoder-dot" aria-hidden="true">.</span>
+      <div class="field"><label for="decoder-b">Row</label><input id="decoder-b" type="text" inputmode="numeric" maxlength="3" autocomplete="off" aria-describedby="decoder-error"></div>
+    </div>
+    <p id="decoder-error" class="error" aria-live="polite"></p>
+    <p id="decoder-result" role="status" aria-live="polite"></p>
+    <button id="decoder-close" class="secondary" type="button">Close</button>
+  </dialog>
   <noscript>Please enable JavaScript to fill out the form and generate a PDF.</noscript>
   <script>/** @license
  *
@@ -717,6 +730,34 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
     return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", step1Desc: params.get("step1Desc") ?? "bottom", step2Desc: params.get("step2Desc") ?? "left side", names: params.getAll("glaze") };
   }
 
+  function decodeTile(a, b, count, names) {
+    const result = { text: "", error: "", invalidFields: [] };
+    count = Number(count);
+    if (!Number.isInteger(count) || count < 1 || count > MAX_GLAZES) {
+      result.error = "Enter a valid number of glazes in the setup first.";
+      return result;
+    }
+    const codes = [String(a).trim(), String(b).trim()];
+    codes.forEach((code, i) => {
+      if (code && (!/^\d+$/.test(code) || Number(code) < 1 || Number(code) > count)) result.invalidFields.push(i === 0 ? "a" : "b");
+    });
+    if (result.invalidFields.length) {
+      result.error = `Use whole numbers from 1 to ${count}.`;
+      return result;
+    }
+    if (codes.some(code => !code)) return result;
+    const indices = codes.map(code => Number(code) - 1);
+    const glazeNames = indices.map(index => String(names?.[index] ?? "").trim());
+    const missing = glazeNames.findIndex(name => !name);
+    if (missing !== -1) {
+      result.error = `Enter a name for glaze #${indices[missing] + 1} in the setup.`;
+      return result;
+    }
+    result.text = `${glazeNames[0]} below ${glazeNames[1]}.`;
+    result.glazeNames = glazeNames;
+    return result;
+  }
+
   function createPdf(data, JsPDF, renderOptions = {}) {
     const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: [PAGE.width, PAGE.height], precision: 6, compress: true });
     if (root.CERAMIC_FONT) {
@@ -997,7 +1038,7 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
     return doc;
   }
 
-  root.TileHelper = { PAGE, MAX_GLAZES, MAX_GRID_PAGES, layout, validate, shareUrl, readUrl, createPdf };
+  root.TileHelper = { PAGE, MAX_GLAZES, MAX_GRID_PAGES, layout, validate, shareUrl, readUrl, decodeTile, createPdf };
 })(globalThis);
 </script>
   <script>(function (root) {
@@ -1139,6 +1180,10 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
   const generate = document.getElementById("generate");
   const preview = document.getElementById("preview");
   const shareResult = document.getElementById("share-result");
+  const decoderButton = document.getElementById("tile-decoder");
+  const decoderDialog = document.getElementById("decoder-dialog");
+  const decoderA = document.getElementById("decoder-a");
+  const decoderB = document.getElementById("decoder-b");
   let nameCache = [];
   let submitted = false;
 
@@ -1211,6 +1256,34 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
   function filename(title) {
     return title.replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "ceramic-test-tiles";
   }
+
+  function updateDecoder() {
+    const setup = readForm();
+    const result = helper.decodeTile(decoderA.value, decoderB.value, setup.count, setup.names);
+    const output = document.getElementById("decoder-result");
+    output.replaceChildren();
+    if (result.text) {
+      const first = document.createElement("strong");
+      const second = document.createElement("strong");
+      first.textContent = result.glazeNames[0];
+      second.textContent = result.glazeNames[1];
+      output.append(first, document.createTextNode(" below "), second, document.createTextNode("."));
+    }
+    document.getElementById("decoder-error").textContent = result.error;
+    for (const [key, input] of [["a", decoderA], ["b", decoderB]]) {
+      if (result.invalidFields.includes(key)) input.setAttribute("aria-invalid", "true");
+      else input.removeAttribute("aria-invalid");
+    }
+  }
+
+  decoderButton.addEventListener("click", () => {
+    updateDecoder();
+    decoderDialog.showModal();
+    decoderA.focus();
+  });
+  decoderDialog.addEventListener("input", updateDecoder);
+  document.getElementById("decoder-close").addEventListener("click", () => decoderDialog.close());
+  decoderDialog.addEventListener("close", () => decoderButton.focus());
 
   form.addEventListener("input", (event) => {
     if (event.target === fields.count) syncNames();

@@ -273,3 +273,19 @@ test('instructions contain only the print hint and ordered checkbox tasks using 
   const data=helper.validate({...valid,step1Desc:' bottom '}).data;
   assert.equal(data.step1Desc,'bottom');
 });
+
+test('tile decoder maps column.row to the correct glaze order and validates codes independently of PDF setup',()=>{
+  assert.equal(helper.decodeTile('2','3',6,valid.names).text,'Blue below White.');
+  assert.equal(helper.decodeTile('3','2',6,valid.names).text,'White below Blue.');
+  assert.equal(helper.decodeTile('1','1',6,valid.names).text,'Ash below Ash.');
+  assert.equal(helper.decodeTile(' 02 ','3',6,valid.names).text,'Blue below White.');
+  assert.equal(helper.decodeTile('1','2',2,[' Crème & ash ','<Glaze B>']).text,'Crème & ash below <Glaze B>.');
+  for(const [a,b,field] of [['0','1','a'],['-1','2','a'],['1.5','2','a'],['1e0','2','a'],['2','7','b'],['NaN','2','a']]){
+    const result=helper.decodeTile(a,b,6,valid.names);
+    assert.ok(result.error);assert.ok(result.invalidFields.includes(field));assert.equal(result.text,'');
+  }
+  assert.equal(helper.decodeTile('','',6,valid.names).error,'');
+  assert.equal(helper.decodeTile('2','',6,valid.names).text,'');
+  assert.match(helper.decodeTile('1','2',0,valid.names).error,/number of glazes/);
+  assert.match(helper.decodeTile('1','2',2,['Ash',' ']).error,/glaze #2/);
+});

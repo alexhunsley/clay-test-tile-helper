@@ -43,6 +43,11 @@ markers in the preview only; the PDF has no dotted seam lines. It is an
 overview rather than a print-scale template. It works offline with the bundled
 font and requires the same valid form values as PDF generation.
 
+**Tile decoder** opens a modal with two fields for a column.row tile code.
+It uses the current setup's glaze names to show "Column glaze below Row glaze."
+as you type, checks the code range, and can be closed with Close or Escape.
+It only needs a valid glaze count and the selected glaze names.
+
 With swelling off, cells retain their exact requested width and height in PDF
 coordinates. Page boundaries can cut through cells, labels and text. Trim the
 page margins, then join the table portions to

@@ -156,6 +156,34 @@
     return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", step1Desc: params.get("step1Desc") ?? "bottom", step2Desc: params.get("step2Desc") ?? "left side", names: params.getAll("glaze") };
   }
 
+  function decodeTile(a, b, count, names) {
+    const result = { text: "", error: "", invalidFields: [] };
+    count = Number(count);
+    if (!Number.isInteger(count) || count < 1 || count > MAX_GLAZES) {
+      result.error = "Enter a valid number of glazes in the setup first.";
+      return result;
+    }
+    const codes = [String(a).trim(), String(b).trim()];
+    codes.forEach((code, i) => {
+      if (code && (!/^\d+$/.test(code) || Number(code) < 1 || Number(code) > count)) result.invalidFields.push(i === 0 ? "a" : "b");
+    });
+    if (result.invalidFields.length) {
+      result.error = `Use whole numbers from 1 to ${count}.`;
+      return result;
+    }
+    if (codes.some(code => !code)) return result;
+    const indices = codes.map(code => Number(code) - 1);
+    const glazeNames = indices.map(index => String(names?.[index] ?? "").trim());
+    const missing = glazeNames.findIndex(name => !name);
+    if (missing !== -1) {
+      result.error = `Enter a name for glaze #${indices[missing] + 1} in the setup.`;
+      return result;
+    }
+    result.text = `${glazeNames[0]} below ${glazeNames[1]}.`;
+    result.glazeNames = glazeNames;
+    return result;
+  }
+
   function createPdf(data, JsPDF, renderOptions = {}) {
     const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: [PAGE.width, PAGE.height], precision: 6, compress: true });
     if (root.CERAMIC_FONT) {
@@ -436,5 +464,5 @@
     return doc;
   }
 
-  root.TileHelper = { PAGE, MAX_GLAZES, MAX_GRID_PAGES, layout, validate, shareUrl, readUrl, createPdf };
+  root.TileHelper = { PAGE, MAX_GLAZES, MAX_GRID_PAGES, layout, validate, shareUrl, readUrl, decodeTile, createPdf };
 })(globalThis);
