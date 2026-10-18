@@ -9,6 +9,7 @@ for marker, filename in {
     "PDF_LIBRARY": "vendor/jspdf.umd.min.js",
     "FONT": "vendor/noto-sans.js",
     "CORE": "src/core.js",
+    "PREVIEW": "src/preview.js",
     "APP": "src/app.js",
 }.items():
     content = (ROOT / filename).read_text()

@@ -17,6 +17,31 @@ const { pathToFileURL } = require('node:url');
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     const href = pathToFileURL(path.join(root, 'index.html')).href;
+    async function downloadPreview(name) {
+      const event = page.waitForEvent('download');
+      await page.locator('#preview').click();
+      const download = await event;
+      const target = path.join(output, name);
+      await download.saveAs(target);
+      const bytes = await fs.readFile(target);
+      assert.equal(bytes.subarray(0,8).toString('hex'), '89504e470d0a1a0a');
+      const width=bytes.readUInt32BE(16), height=bytes.readUInt32BE(20);
+      assert.ok(width>0 && height>0 && Math.max(width,height)===1600);
+      await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PNG downloaded'));
+      assert.equal(await page.locator('#preview').isEnabled(),true);
+      assert.equal(await page.locator('#generate').isEnabled(),true);
+      return {download,width,height,url:`data:image/png;base64,${bytes.toString('base64')}`};
+    }
+    async function assertGreyJoin(url,xFraction,yFraction) {
+      const pixel = await page.evaluate(async ({url,xFraction,yFraction}) => {
+        const img = new Image(); img.src=url; await img.decode();
+        const canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
+        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
+        return Array.from(ctx.getImageData(Math.floor(img.width*xFraction),Math.floor(img.height*yFraction),1,1).data);
+      },{url,xFraction,yFraction});
+      assert.ok(pixel.slice(0,3).every(channel=>Math.abs(channel-128)<=2),String(pixel));
+      assert.equal(pixel[3],255);
+    }
     await page.goto(href);
     assert.equal(await page.title(), 'Ceramic Test Tile Helper');
     assert.equal(await page.locator('#margin-horizontal').inputValue(), '12');
@@ -31,6 +56,8 @@ const { pathToFileURL } = require('node:url');
     assert.equal(await page.locator('#project-title').getAttribute('aria-invalid'), 'true');
     assert.match(await page.locator('#project-title-error').textContent(), /Enter a project title/);
     assert.equal(await page.locator('#glaze-fields input[aria-invalid=true]').count(), 3);
+    await page.locator('#preview').click();
+    assert.equal(await page.locator('#project-title').getAttribute('aria-invalid'), 'true');
 
     await page.locator('#project-title').fill('Émaux & ash #1');
     await page.locator('#glaze-0').fill('Crème + cobalt');
@@ -107,6 +134,10 @@ const { pathToFileURL } = require('node:url');
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
     assert.match(await page.locator('#form-status').textContent(), /3 pages/);
     assert.ok((await fs.stat(path.join(output, 'browser-download.pdf'))).size > 1000);
+    const assembly=await downloadPreview('assembly.png');
+    assert.equal(assembly.download.suggestedFilename(),'Émaux-ash-1-assembly.png');
+    assert.ok(Math.abs(assembly.width/assembly.height-290/403)<.001);
+    await assertGreyJoin(assembly.url,.5,.5);
     await page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -127,6 +158,11 @@ const { pathToFileURL } = require('node:url');
     await (await spanningDownload).saveAs(path.join(output, 'browser-spanning-cell.pdf'));
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
     assert.match(await page.locator('#form-status').textContent(), /5 pages/);
+    const spanningAssembly=await downloadPreview('spanning-assembly.png');
+    assert.equal(spanningAssembly.download.suggestedFilename(),'Spanning-cell-assembly.png');
+    assert.ok(Math.abs(spanningAssembly.width/spanningAssembly.height-546/372)<.002);
+    await assertGreyJoin(spanningAssembly.url,.5,.25);
+    await assertGreyJoin(spanningAssembly.url,.25,.5);
     assert.deepEqual(errors, []);
     console.log('Browser checks passed: offline file://, dynamic fields, inline errors, name retention, share restoration, clipboard fallback, PDF download, and mobile layout.');
   } finally {

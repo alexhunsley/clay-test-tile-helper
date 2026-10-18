@@ -9,6 +9,7 @@
   const glazeFields = document.getElementById("glaze-fields");
   const status = document.getElementById("form-status");
   const generate = document.getElementById("generate");
+  const preview = document.getElementById("preview");
   const shareResult = document.getElementById("share-result");
   let nameCache = [];
   let submitted = false;
@@ -79,6 +80,10 @@
     return valid ? result.data : null;
   }
 
+  function filename(title) {
+    return title.replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "ceramic-test-tiles";
+  }
+
   form.addEventListener("input", (event) => {
     if (event.target === fields.count) syncNames();
     fields.maxWidth.disabled = fields.maxHeight.disabled = !fields.swell.checked;
@@ -93,13 +98,13 @@
     const data = validate();
     if (!data) return;
     generate.disabled = true;
+    preview.disabled = true;
     generate.textContent = "Making your PDF…";
     status.textContent = "Drawing your true-size grid…";
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
     try {
       const pdf = helper.createPdf(data, globalThis.jspdf.jsPDF);
-      const filename = data.title.replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "ceramic-test-tiles";
-      await pdf.save(`${filename}.pdf`, { returnPromise: true });
+      await pdf.save(`${filename(data.title)}.pdf`, { returnPromise: true });
       status.textContent = `PDF generated: ${pdf.getNumberOfPages()} pages. Print on A4 at 100% / Actual size.`;
     } catch (error) {
       console.error(error);
@@ -107,7 +112,36 @@
       status.textContent = "The PDF could not be generated. Please try a smaller grid.";
     } finally {
       generate.disabled = false;
+      preview.disabled = false;
       generate.textContent = "Generate PDF ↓";
+    }
+  });
+
+  preview.addEventListener("click", async () => {
+    const data = validate();
+    if (!data) return;
+    generate.disabled = preview.disabled = true;
+    preview.textContent = "Making preview…";
+    status.textContent = "Assembling the grid sheets…";
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    try {
+      const blob = await helper.createAssemblyPng(data);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${filename(data.title)}-assembly.png`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      status.textContent = "Table assembly PNG downloaded.";
+    } catch (error) {
+      console.error(error);
+      status.classList.add("problem");
+      status.textContent = "The assembly preview could not be generated. Please try again.";
+    } finally {
+      generate.disabled = preview.disabled = false;
+      preview.textContent = "Preview table assembly ↓";
     }
   });
 

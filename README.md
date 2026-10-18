@@ -29,6 +29,13 @@ Every cell has a centered footer in column.row order, followed by the column
 glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
 shrink to stay inside the cell; very small cells require very small type.
 
+**Preview table assembly** downloads a PNG of the grid sheets joined in place,
+with the page margins removed and matching semicircles touching. It uses the
+same table renderer as the PDF, including clipped cells, labels, watermarks and
+edge letters. The image's longest side is 1,600 pixels; it is an overview of the
+assembly, rather than a print-scale template. It works offline with the bundled
+font and requires the same valid form values as PDF generation.
+
 With swelling off, cells retain their exact requested width and height in PDF
 coordinates. Page boundaries can cut through cells, labels and text. Trim the
 page margins, then join the table portions to

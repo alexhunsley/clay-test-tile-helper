@@ -98,7 +98,7 @@
     return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", names: params.getAll("glaze") };
   }
 
-  function createPdf(data, JsPDF) {
+  function createPdf(data, JsPDF, renderOptions = {}) {
     const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: [PAGE.width, PAGE.height], precision: 6, compress: true });
     if (root.CERAMIC_FONT) {
       doc.addFileToVFS("NotoSans-Regular.ttf", root.CERAMIC_FONT);
@@ -230,47 +230,49 @@
       doc.text(letter, textX, textY + size * (25.4 / 72) * .35, { align: "center" });
     }
 
-    pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
-    doc.setDrawColor(...muted);
-    doc.line(left, area.bottom - 7, left + 100, area.bottom - 7);
-    doc.line(left, area.bottom - 8.5, left, area.bottom - 5.5);
-    doc.line(left + 100, area.bottom - 8.5, left + 100, area.bottom - 5.5);
-    text("100 mm scale check", left, area.bottom - 1, 8);
-    const instructions = [
-      `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.cellWidth.toFixed(3))} × ${Number(plan.cellHeight.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
-      "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
-      "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
-      "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-      "Trim the page margins, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
-    ];
-    let y = area.marginV + 30;
-    const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
-    function nextInstructionPage() {
-      doc.addPage();
-      pageHeading("Ceramic Test Tile Helper / Instructions & glaze key continued");
-      y = area.marginV + 30;
-    }
-    function paragraph(value, gap = 4) {
-      doc.setFontSize(10);
-      const lines = doc.splitTextToSize(value, bodyWidth);
-      for (const line of lines) {
-        if (y + 5 > bodyBottom()) nextInstructionPage();
-        text(line, left + 3, y, 10);
-        y += 5;
+    if (!renderOptions.tableOnly) {
+      pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
+      doc.setDrawColor(...muted);
+      doc.line(left, area.bottom - 7, left + 100, area.bottom - 7);
+      doc.line(left, area.bottom - 8.5, left, area.bottom - 5.5);
+      doc.line(left + 100, area.bottom - 8.5, left + 100, area.bottom - 5.5);
+      text("100 mm scale check", left, area.bottom - 1, 8);
+      const instructions = [
+        `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
+        `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.cellWidth.toFixed(3))} × ${Number(plan.cellHeight.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
+        "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
+        "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
+        "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
+        "Trim the page margins, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
+      ];
+      let y = area.marginV + 30;
+      const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
+      function nextInstructionPage() {
+        doc.addPage();
+        pageHeading("Ceramic Test Tile Helper / Instructions & glaze key continued");
+        y = area.marginV + 30;
       }
-      y += gap;
+      function paragraph(value, gap = 4) {
+        doc.setFontSize(10);
+        const lines = doc.splitTextToSize(value, bodyWidth);
+        for (const line of lines) {
+          if (y + 5 > bodyBottom()) nextInstructionPage();
+          text(line, left + 3, y, 10);
+          y += 5;
+        }
+        y += gap;
+      }
+      instructions.forEach(value => paragraph(value));
+      if (y + 20 > bodyBottom()) nextInstructionPage();
+      y += 5;
+      text("Glaze key", left, y, 13);
+      y += 10;
+      data.names.forEach((name, i) => paragraph(`#${i + 1}  ${name}`, 3));
     }
-    instructions.forEach(value => paragraph(value));
-    if (y + 20 > bodyBottom()) nextInstructionPage();
-    y += 5;
-    text("Glaze key", left, y, 13);
-    y += 10;
-    data.names.forEach((name, i) => paragraph(`#${i + 1}  ${name}`, 3));
 
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
-        doc.addPage();
+        if (!renderOptions.tableOnly || sheetRow !== 0 || sheetColumn !== 0) doc.addPage();
         const rowSlice = plan.rowBands[sheetRow];
         const columnSlice = plan.columnBands[sheetColumn];
         const { cellWidth, cellHeight } = plan;
