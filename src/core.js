@@ -3,26 +3,76 @@
   const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 8, gridX: 24, gridY: 20, gridWidth: 261, gridHeight: 178, continuationWidth: 273, continuationHeight: 186 });
   const MAX_GLAZES = 100;
   const MAX_GRID_PAGES = 400;
+  const HEADER_FONT_SIZE = 10;
+  const HEADER_LINE_HEIGHT = HEADER_FONT_SIZE * (25.4 / 72) * 1.15;
+  let headerMetrics;
+  let headerCache;
 
-  function geometry(marginH = PAGE.margin, marginV = PAGE.margin) {
+  function metricsForHeaders() {
+    if (!headerMetrics) {
+      headerMetrics = new root.jspdf.jsPDF();
+      if (root.CERAMIC_FONT) {
+        headerMetrics.addFileToVFS("NotoSans-Regular.ttf", root.CERAMIC_FONT);
+        headerMetrics.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+        headerMetrics.setFont("NotoSans", "normal");
+      }
+      headerMetrics.setFontSize(HEADER_FONT_SIZE);
+    }
+    return headerMetrics;
+  }
+
+  function headerText(metrics, value, length) {
+    const padding = Math.min(2, length * .1);
+    const wrapWidth = Math.max(metrics.getTextWidth("W"), length - padding * 2);
+    return { padding, lines: metrics.splitTextToSize(value, wrapWidth) };
+  }
+
+  function headerDimensions(count, width, height, names) {
+    if (!names) return { labelWidth: PAGE.labelWidth, labelHeight: PAGE.labelHeight };
+    const labels = Array.from({ length: count }, (_, i) => `#${i + 1}  ${String(names[i] ?? "").slice(0, 100)}`);
+    const key = JSON.stringify([width, height, labels]);
+    if (headerCache?.key === key) return headerCache.value;
+    const metrics = metricsForHeaders();
+    let labelWidth = PAGE.labelWidth, labelHeight = PAGE.labelHeight;
+    for (const label of labels) {
+      const column = headerText(metrics, label, width);
+      const row = headerText(metrics, label, height);
+      const textHeight = lines => HEADER_FONT_SIZE * (25.4 / 72) + (lines.length - 1) * HEADER_LINE_HEIGHT;
+      labelHeight = Math.max(labelHeight, column.padding * 2 + textHeight(column.lines));
+      labelWidth = Math.max(labelWidth, row.padding * 2 + textHeight(row.lines));
+    }
+    const value = { labelWidth, labelHeight };
+    headerCache = { key, value };
+    return value;
+  }
+
+  function geometry(marginH = PAGE.margin, marginV = PAGE.margin, labels = PAGE) {
     const contentWidth = PAGE.width - 2 * marginH;
     const gridTop = marginV;
     const bottom = PAGE.height - marginV;
-    return { marginH, marginV, contentWidth, gridTop, bottom, gridWidth: contentWidth - PAGE.labelWidth, gridHeight: bottom - gridTop - PAGE.labelHeight, continuationWidth: contentWidth, continuationHeight: bottom - gridTop };
+    return { marginH, marginV, contentWidth, gridTop, bottom, labelWidth: labels.labelWidth, labelHeight: labels.labelHeight, gridWidth: contentWidth - labels.labelWidth, gridHeight: bottom - gridTop - labels.labelHeight, continuationWidth: contentWidth, continuationHeight: bottom - gridTop };
   }
 
   function layout(count, width, height, marginH = PAGE.margin, marginV = PAGE.margin, options = {}) {
-    const area = geometry(marginH, marginV);
+    let labels = headerDimensions(count, width, height, options.names);
+    let area = geometry(marginH, marginV, labels);
     // The labelled table is one continuous surface. Sheets are rectangular
     // windows onto it, and may cut through cells, text and grid lines.
-    const across = Math.max(1, Math.ceil((PAGE.labelWidth + count * width - 1e-9) / area.contentWidth));
-    const down = Math.max(1, Math.ceil((PAGE.labelHeight + count * height - 1e-9) / area.continuationHeight));
+    const across = Math.max(1, Math.ceil((area.labelWidth + count * width - 1e-9) / area.contentWidth));
+    const down = Math.max(1, Math.ceil((area.labelHeight + count * height - 1e-9) / area.continuationHeight));
     const expand = (minimum, available, limit) => options.swell
       ? Math.max(minimum, Math.min(available / count, limit > 0 ? limit : Infinity)) : minimum;
-    const cellWidth = expand(width, across * area.contentWidth - PAGE.labelWidth, options.maxWidth);
-    const cellHeight = expand(height, down * area.continuationHeight - PAGE.labelHeight, options.maxHeight);
-    const tableWidth = PAGE.labelWidth + count * cellWidth;
-    const tableHeight = PAGE.labelHeight + count * cellHeight;
+    let cellWidth = width, cellHeight = height;
+    for (let i = 0; i < 256; i++) {
+      cellWidth = expand(width, across * area.contentWidth - area.labelWidth, options.maxWidth);
+      cellHeight = expand(height, down * area.continuationHeight - area.labelHeight, options.maxHeight);
+      if (!options.swell) break;
+      labels = headerDimensions(count, cellWidth, cellHeight, options.names);
+      if (labels.labelWidth === area.labelWidth && labels.labelHeight === area.labelHeight) break;
+      area = geometry(marginH, marginV, labels);
+    }
+    const tableWidth = area.labelWidth + count * cellWidth;
+    const tableHeight = area.labelHeight + count * cellHeight;
     const pages = across * down;
     function slices(sheets, span, total, labelSize, cellSize) {
       if (!Number.isFinite(pages) || pages > MAX_GRID_PAGES) return [];
@@ -34,8 +84,8 @@
         return { offset, extent, start, count: end - start, cellSize };
       });
     }
-    const columnBands = slices(across, area.contentWidth, tableWidth, PAGE.labelWidth, cellWidth);
-    const rowBands = slices(down, area.continuationHeight, tableHeight, PAGE.labelHeight, cellHeight);
+    const columnBands = slices(across, area.contentWidth, tableWidth, area.labelWidth, cellWidth);
+    const rowBands = slices(down, area.continuationHeight, tableHeight, area.labelHeight, cellHeight);
     return { columnBands, rowBands, across, down, pages, cellWidth, cellHeight, tableWidth, tableHeight, area };
   }
 
@@ -73,7 +123,7 @@
       else if (name.length > 100) errors[`name-${i}`] = "Use 100 characters or fewer.";
     });
     if (!errors.count && !errors.width && !errors.height && !errors.marginH && !errors.marginV) {
-      const plan = layout(count, width, height, marginH, marginV);
+      const plan = layout(count, width, height, marginH, marginV, { names });
       if (plan.pages > MAX_GRID_PAGES) errors.count = `This needs ${plan.pages.toLocaleString()} grid sheets. Reduce the glaze count or footprint to use at most ${MAX_GRID_PAGES}.`;
     }
     return { errors, data: { title, count, width, height, marginH, marginV, swell, maxWidth, maxHeight, names } };
@@ -154,6 +204,17 @@
     function pageHeading(subtitle) {
       fitted(data.title, left, area.marginV, area.contentWidth, 14, 17);
       fitted(subtitle, left, area.marginV + 14, area.contentWidth, 8, 9);
+    }
+
+    function tableHeader(value, x, y, width, height, rotated = false) {
+      doc.setFontSize(HEADER_FONT_SIZE);
+      const { padding, lines } = headerText(doc, value, rotated ? height : width);
+      const baseline = padding + HEADER_FONT_SIZE * (25.4 / 72);
+      if (rotated) {
+        text(lines.join("\n"), x + baseline, y + height - padding, HEADER_FONT_SIZE, { angle: 90, lineHeightFactor: 1.15 });
+      } else {
+        text(lines.join("\n"), x + padding, y + baseline, HEADER_FONT_SIZE, { lineHeightFactor: 1.15 });
+      }
     }
 
     function cellFooter(value, x, y, width, height, viewport) {
@@ -280,22 +341,22 @@
         const viewWidth = columnSlice.extent, viewHeight = rowSlice.extent;
         const projectX = x => left + x - viewX;
         const projectY = y => area.gridTop + y - viewY;
-        const gridX = Math.max(left, projectX(PAGE.labelWidth));
-        const gridY = Math.max(area.gridTop, projectY(PAGE.labelHeight));
+        const gridX = Math.max(left, projectX(area.labelWidth));
+        const gridY = Math.max(area.gridTop, projectY(area.labelHeight));
         const gridWidth = left + viewWidth - gridX;
         const gridHeight = area.gridTop + viewHeight - gridY;
         doc.saveGraphicsState();
         doc.rect(left, area.gridTop, viewWidth, viewHeight, null).clip().discardPath();
-        watermark(gridX, gridY, gridWidth, gridHeight);
+        if (gridWidth > 0 && gridHeight > 0) watermark(gridX, gridY, gridWidth, gridHeight);
 
         doc.setFillColor(...labelFill);
-        if (sheetRow === 0) doc.rect(left, area.gridTop, viewWidth, PAGE.labelHeight, "F");
-        if (sheetColumn === 0) doc.rect(left, gridY, PAGE.labelWidth, gridHeight, "F");
-        for (let col = columnSlice.start; sheetRow === 0 && col < columnSlice.start + columnSlice.count; col++) {
-          fitted(`#${col + 1}  ${data.names[col]}`, projectX(PAGE.labelWidth + col * cellWidth), projectY(0), cellWidth, PAGE.labelHeight);
+        if (viewY < area.labelHeight) doc.rect(left, area.gridTop, viewWidth, Math.min(viewHeight, area.labelHeight - viewY), "F");
+        if (viewX < area.labelWidth && gridHeight > 0) doc.rect(left, gridY, Math.min(viewWidth, area.labelWidth - viewX), gridHeight, "F");
+        for (let col = columnSlice.start; viewY < area.labelHeight && col < columnSlice.start + columnSlice.count; col++) {
+          tableHeader(`#${col + 1}  ${data.names[col]}`, projectX(area.labelWidth + col * cellWidth), projectY(0), cellWidth, area.labelHeight);
         }
-        for (let row = rowSlice.start; sheetColumn === 0 && row < rowSlice.start + rowSlice.count; row++) {
-          fitted(`#${row + 1}  ${data.names[row]}`, projectX(0), projectY(PAGE.labelHeight + row * cellHeight), PAGE.labelWidth, cellHeight, 10, true);
+        for (let row = rowSlice.start; viewX < area.labelWidth && row < rowSlice.start + rowSlice.count; row++) {
+          tableHeader(`#${row + 1}  ${data.names[row]}`, projectX(0), projectY(area.labelHeight + row * cellHeight), area.labelWidth, cellHeight, true);
         }
         doc.setDrawColor(115, 124, 112);
         doc.setLineWidth(.2);
@@ -304,13 +365,13 @@
         if (sheetColumn === 0) doc.line(left, area.gridTop, left, area.gridTop + viewHeight);
         if (sheetRow === 0) doc.line(left, area.gridTop, left + viewWidth, area.gridTop);
         for (let col = 0; col <= data.count; col++) {
-          const x = PAGE.labelWidth + col * cellWidth;
+          const x = area.labelWidth + col * cellWidth;
           if (x >= viewX - 1e-9 && x <= viewX + viewWidth + 1e-9) {
             doc.line(projectX(x), area.gridTop, projectX(x), area.gridTop + viewHeight);
           }
         }
         for (let row = 0; row <= data.count; row++) {
-          const y = PAGE.labelHeight + row * cellHeight;
+          const y = area.labelHeight + row * cellHeight;
           if (y >= viewY - 1e-9 && y <= viewY + viewHeight + 1e-9) {
             doc.line(left, projectY(y), left + viewWidth, projectY(y));
           }
@@ -319,7 +380,7 @@
         for (let row = rowSlice.start; row < rowSlice.start + rowSlice.count; row++) {
           for (let col = columnSlice.start; col < columnSlice.start + columnSlice.count; col++) {
             const pair = `${col + 1}.${row + 1} ${data.names[col]} / ${data.names[row]}`;
-            cellFooter(pair, projectX(PAGE.labelWidth + col * cellWidth), projectY(PAGE.labelHeight + row * cellHeight), cellWidth, cellHeight, viewport);
+            cellFooter(pair, projectX(area.labelWidth + col * cellWidth), projectY(area.labelHeight + row * cellHeight), cellWidth, cellHeight, viewport);
           }
         }
         const horizontalJoins = plan.down * (plan.across - 1);

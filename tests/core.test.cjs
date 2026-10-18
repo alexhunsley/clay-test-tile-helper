@@ -21,7 +21,7 @@ function render(raw){
     const doc=new browser.jspdf.jsPDF({...options,compress:false});
     for(const method of ['line','rect','circle','text','clip']){
       const original=doc[method].bind(doc);
-      doc[method]=(...args)=>{calls.push({method,page:doc.getNumberOfPages(),args,color:doc.getTextColor()});return original(...args);};
+      doc[method]=(...args)=>{calls.push({method,page:doc.getNumberOfPages(),args,color:doc.getTextColor(),size:doc.getFontSize()});return original(...args);};
     }
     return doc;
   }
@@ -203,4 +203,39 @@ test('join markers pair unique white letters on opposite midpoints of every inte
   }
   const single=render({...valid,count:1,width:50,height:50,names:['Ash']});
   assert.equal(single.calls.filter(c=>c.method==='circle').length,0);
+});
+
+test('row and column headers remain 10 pt and expand their bands to preserve complete long names',()=>{
+  const names=['Deep blue glaze with a long descriptive studio name','White feldspar and wood ash glaze sample'];
+  for(const swell of [false,true]){
+    const input={...valid,count:2,width:22,height:18,names,swell,maxWidth:30,maxHeight:26};
+    const {calls,plan,firstGridPage}=render(input);
+    assert.ok(plan.area.labelHeight>8);
+    assert.ok(plan.area.labelWidth>12);
+    if(!swell){close(plan.cellWidth,22);close(plan.cellHeight,18);}
+    const headers=calls.filter(c=>c.method==='text' && c.page>=firstGridPage && String(c.args[0]).startsWith('#'));
+    assert.equal(headers.length,4);
+    assert.equal(headers.filter(c=>c.args[3].angle===90).length,2);
+    for(const header of headers){
+      assert.equal(header.size,10);
+      const value=header.args[0];
+      const index=Number(/^#(\d+)/.exec(value)[1])-1;
+      assert.equal(value.replace(/\s/g,''),`#${index+1}${names[index]}`.replace(/\s/g,''));
+      assert.equal(value.includes('…'),false);
+      assert.ok(value.includes('\n'));
+      const rotated=header.args[3].angle===90;
+      const lines=value.split('\n').length;
+      const lastBaseline=(rotated?header.args[1]-12:header.args[2]-12)+(lines-1)*10*(25.4/72)*1.15;
+      assert.ok(lastBaseline+10*(25.4/72)*.25<(rotated?plan.area.labelWidth:plan.area.labelHeight));
+    }
+    close(plan.tableWidth,plan.area.labelWidth+2*plan.cellWidth);
+    close(plan.tableHeight,plan.area.labelHeight+2*plan.cellHeight);
+  }
+  // Without size caps, swelling still fills the complete paper area after
+  // the readable headers have been measured and allowed to reflow.
+  const data=helper.validate({...valid,count:2,width:22,height:18,names,swell:true}).data;
+  const plan=helper.layout(2,22,18,12,12,data);
+  close(plan.tableWidth,plan.across*plan.area.contentWidth);
+  close(plan.tableHeight,plan.down*plan.area.continuationHeight);
+  assert.ok(plan.area.labelHeight>=8 && plan.area.labelWidth>=12);
 });

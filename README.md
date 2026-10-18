@@ -56,13 +56,17 @@ keep the normal title heading. Print at
 in the footer of the first instructions page. Grid sheets have no scale check,
 print-setting footer, or page-number footer.
 Printer scaling affects physical dimensions; the page cannot override it.
-For very small cells, labels may be shortened or omitted; the full glaze key is
-always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
+Row and column headers both use 10 pt text, without reducing their font size.
+Long names wrap and grow the header bands into the available table area;
+the tile cells retain their footprint (or expanded size). The full glaze key is
+also included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
 At the default margins, the usable grid area on the top-left sheet is
-261 × 178 mm, after allowing for labels and margins. Column headers are 8 mm
-high. The table starts at the
+261 × 178 mm for short, single-line headers, after allowing for labels and
+margins. Column headers start at 8 mm high and grow as needed for readable
+10 pt text; the rotated row header band starts at 12 mm wide and also grows.
+Header sizing is included in pagination and swelling. The table starts at the
 top margin with no sheet heading. Sheets without row labels gain
 12 mm of width; sheets without column labels gain 8 mm of height.
 Cell dimensions must be positive, and may exceed the size of one sheet.
