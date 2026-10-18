@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f3ed">
+  <meta name="description" content="Make a printable, true-size grid for ceramic glaze test tiles.">
+  <title>Ceramic Test Tile Helper</title>
+  <style>/* STYLES */</style>
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <p class="eyebrow"><span class="mark" aria-hidden="true">▦</span> A LITTLE ORDER FOR YOUR STUDIO</p>
+      <h1>Ceramic Test Tile Helper</h1>
+      <p class="intro-copy">This tool makes a PDF for you to print. The printout contains instructions and a grid. This helps you can create test tile glaze combos in an organised way (and avoid mistakes).</p>
+    </header>
+
+    <form id="tile-form" novalidate>
+      <section class="panel" aria-labelledby="project-heading">
+        <div class="section-heading"><span class="step">01</span><div><h2 id="project-heading">Set up your project</h2><p>A name, a glaze count, and a little space for each tile.</p></div></div>
+        <div class="field">
+          <label for="project-title">Project title</label>
+          <input id="project-title" name="title" type="text" maxlength="160" placeholder="e.g. Autumn glaze tests" required aria-describedby="project-title-error">
+          <p class="error" id="project-title-error"></p>
+        </div>
+        <div class="field count-field">
+          <label for="glaze-count">Number of glazes</label>
+          <input id="glaze-count" name="count" type="number" min="1" max="100" step="1" value="3" required aria-describedby="tile-count glaze-count-error">
+          <p class="hint" id="tile-count" aria-live="polite"></p>
+          <p class="error" id="glaze-count-error"></p>
+        </div>
+        <fieldset>
+          <legend>Glaze footprint <span>(for printout)</span></legend>
+          <p class="hint footprint-hint">The printed size of each cell. Include any space you want around a tile.</p>
+          <div class="dimensions">
+            <div class="field"><label for="tile-width">Width</label><div class="unit-input"><input id="tile-width" name="width" type="number" min="0" step="any" value="50" required aria-describedby="tile-width-error"><span aria-hidden="true">mm</span></div><p class="error" id="tile-width-error"></p></div>
+            <span class="multiply" aria-hidden="true">×</span>
+            <div class="field"><label for="tile-height">Height</label><div class="unit-input"><input id="tile-height" name="height" type="number" min="0" step="any" value="50" required aria-describedby="tile-height-error"><span aria-hidden="true">mm</span></div><p class="error" id="tile-height-error"></p></div>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="panel" aria-labelledby="glazes-heading">
+        <div class="section-heading"><span class="step">02</span><div><h2 id="glazes-heading">Name your glazes</h2><p>These names appear beside their numbers on the printed grid.</p></div></div>
+        <div id="glaze-fields" class="glaze-fields"></div>
+      </section>
+
+      <section class="output-panel" aria-labelledby="output-heading">
+        <div><p class="eyebrow">READY FOR THE WORKBENCH</p><h2 id="output-heading">Your printable test grid</h2><p id="layout-summary" class="hint" aria-live="polite"></p><p class="print-note">A4 landscape · Print at 100% / Actual size</p></div>
+        <div class="actions"><button id="generate" type="submit">Generate PDF <span aria-hidden="true">↓</span></button><button id="share" class="secondary" type="button">Share filled form <span aria-hidden="true">↗</span></button></div>
+        <p id="form-status" role="status" aria-live="polite"></p>
+        <div id="share-result" hidden><label for="share-url">Filled-form link</label><input id="share-url" type="text" readonly><p class="hint" id="share-note"></p></div>
+      </section>
+    </form>
+    <footer>Made for careful experiments and happily messy studios.<span>Works offline. Your form stays in your browser.</span></footer>
+  </main>
+  <noscript>Please enable JavaScript to fill out the form and generate a PDF.</noscript>
+  <script>/* PDF_LIBRARY */</script>
+  <script>/* FONT */</script>
+  <script>/* CORE */</script>
+  <script>/* APP */</script>
+</body>
+</html>
