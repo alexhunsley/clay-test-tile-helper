@@ -13,7 +13,7 @@ for (const file of ['vendor/jspdf.umd.min.js', 'vendor/noto-sans.js', 'src/core.
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), browser, { filename: file });
 }
 const helper = browser.TileHelper;
-const valid = { title: 'Studio tests', count: '6', width: '50', height: '60', marginH: '12', marginV: '12', names: ['Ash', 'Blue', 'White', 'Green', 'Clear', 'Ochre'] };
+const valid = { title: 'Studio tests', count: '6', width: '50', height: '60', marginH: '12', marginV: '12', swell: false, maxWidth: '0', maxHeight: '0', names: ['Ash', 'Blue', 'White', 'Green', 'Clear', 'Ochre'] };
 
 test('validation rejects missing fields, fractional counts, non-finite dimensions, oversized cells, and empty names', () => {
   const invalid = [
@@ -72,6 +72,54 @@ test('query links round-trip Unicode, punctuation, names and fractional values',
   const oldLink = helper.readUrl('https://example.test/?v=1&title=Old&count=1&width=50&height=50&glaze=Ash');
   assert.equal(oldLink.marginH, '12');
   assert.equal(oldLink.marginV, '12');
+  assert.equal(oldLink.swell, false);
+  assert.equal(oldLink.maxWidth, '0');
+});
+
+test('swelling fills every band independently, keeps pagination and respects independent size limits', () => {
+  for (const [count, width, height, marginH, marginV] of [[6,50,60,12,12], [11,33.5,47.25,3.5,4.25], [1,50,60,0,0], [100,5,5,12,12]]) {
+    const original = helper.layout(count, width, height, marginH, marginV);
+    for (const [maxWidth, maxHeight] of [[0,0], [width + 3,0], [0,height + 10], [width,height], [width + 7,height + 2]]) {
+      const plan = helper.layout(count, width, height, marginH, marginV, { swell: true, maxWidth, maxHeight });
+      assert.equal(plan.pages, original.pages);
+      for (const [bands, baseBands, minSize, maxSize, firstSpace, laterSpace] of [
+        [plan.columnBands, original.columnBands, width, maxWidth, plan.area.gridWidth, plan.area.continuationWidth],
+        [plan.rowBands, original.rowBands, height, maxHeight, plan.area.gridHeight, plan.area.continuationHeight]
+      ]) {
+        bands.forEach((band, i) => {
+          const available = i === 0 ? firstSpace : laterSpace;
+          assert.equal(band.start, baseBands[i].start);
+          assert.equal(band.count, baseBands[i].count);
+          assert.ok(band.cellSize >= minSize);
+          assert.ok(band.cellSize * band.count <= available + 1e-8);
+          if (maxSize > 0) assert.ok(band.cellSize <= maxSize + 1e-8);
+          assert.ok(Math.abs(band.cellSize - Math.min(available / band.count, maxSize || Infinity)) < 1e-8);
+        });
+      }
+    }
+  }
+  const raw = { ...valid, swell: true, maxWidth: '70.25', maxHeight: '0' };
+  assert.deepEqual(JSON.parse(JSON.stringify(helper.readUrl(helper.shareUrl(raw, 'https://example.test/')))), raw);
+  for (const [changes, error] of [[{maxWidth:'49'},'maxWidth'], [{maxHeight:'59'},'maxHeight'], [{maxWidth:'-1'},'maxWidth'], [{maxHeight:''},'maxHeight'], [{maxWidth:'Infinity'},'maxWidth']]) {
+    assert.ok(helper.validate({ ...raw, ...changes }).errors[error]);
+    assert.equal(helper.validate({ ...raw, ...changes, swell: false }).errors[error], undefined);
+  }
+  const data = helper.validate({ ...valid, swell: true }).data;
+  const rects = [], textCalls = [];
+  function TrackedPDF(options) {
+    const doc = new browser.jspdf.jsPDF(options);
+    for (const [method, list] of [['rect', rects], ['text', textCalls]]) {
+      const original = doc[method].bind(doc);
+      doc[method] = (...args) => { list.push({page: doc.getNumberOfPages(), args}); return original(...args); };
+    }
+    return doc;
+  }
+  const pdf = helper.createPdf(data, TrackedPDF);
+  assert.equal(pdf.getNumberOfPages(), 7);
+  // The final interior sheet fills both axes, despite containing only one column.
+  assert.ok(rects.some(({page,args:[x,y,w,h]}) => page === 7 && x === 12 && y === 20 && w === 273 && h === 178));
+  assert.ok(textCalls.some(({page,args}) => page === 7 && String(args[0]).includes('cells 273 × 89 mm')));
+  fs.writeFileSync(path.join(root, 'test-output/swelled.pdf'), Buffer.from(pdf.output('arraybuffer')));
 });
 
 test('real PDF has A4 pages, expected pagination, embedded font, and exact mm grid spacing', () => {

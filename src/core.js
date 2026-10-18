@@ -185,7 +185,7 @@
     text("100 mm scale check", left, area.bottom - 1, 8);
     const instructions = [
       `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` Cells expand to fill each sheet, up to ${data.maxWidth || "unlimited"} mm wide and ${data.maxHeight || "unlimited"} mm high. Cell sizes can vary between sheets.` : ""}`,
+      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` Cells expand to fill each sheet, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}. Cell sizes can vary between sheets.` : ""}`,
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",

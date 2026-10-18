@@ -9,12 +9,22 @@ horizontal/vertical page margins, and glaze names. Both margins default to
 12 mm and apply symmetrically to opposite edges. Zero and fractional margins
 are supported; the grid page count updates when margins change. Glaze names
 start empty and each must contain non-whitespace text.
+
+**Swell cells to available paper** is off by default. Enable it to treat the
+footprint as a minimum and expand cells to fill the existing sheet layout.
+Maximum cell width and height are enabled with this option; 0 means no limit.
+A positive maximum must be at least the footprint size. Width and height grow
+independently. Every sheet column shares one cell width, and every sheet row
+shares one cell height, so adjoining sheets align. Partial final sheets expand
+too, so cell sizes can differ between sheets. Limits can leave unused space.
+The original cell counts and sheets across/down remain unchanged. The preview
+shows the size range; each PDF sheet states its actual cell dimensions.
 Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
 first glaze and columns the second glaze.
 
-Cells retain their exact requested width and height in PDF coordinates. Page
+With swelling off, cells retain their exact requested width and height in PDF coordinates. Page
 breaks always fall between whole cells. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost
 sheets. Continuation sheets reclaim the space from the omitted labels. On grid
