@@ -5,7 +5,8 @@ all JavaScript and the PDF font embedded: no server, installation, or internet
 connection is needed. It can also be hosted by any static web host.
 
 Enter a project title, glaze count, footprint width/height in millimetres, and
-glaze names. Generate PDF downloads an A4 landscape document with instructions,
+glaze names. Glaze names start empty and each must contain non-whitespace text.
+Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
 first glaze and columns the second glaze.
@@ -14,7 +15,9 @@ Cells retain their exact requested width and height in PDF coordinates. Page
 breaks always fall between whole cells. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost
 sheets. Continuation sheets reclaim the space from the omitted labels. Print at
-**100% / Actual size**, with A4 landscape selected, and check the 100 mm scale.
+**100% / Actual size**, with A4 landscape selected, and check the 100 mm scale
+in the footer of the first instructions page. Grid sheets have no scale check,
+print-setting footer, or page-number footer.
 Printer scaling affects physical dimensions; the page cannot override it.
 For very small cells, labels may be shortened or omitted; the full glaze key is
 always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,

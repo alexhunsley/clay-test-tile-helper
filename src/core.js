@@ -124,10 +124,15 @@
     }
 
     pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
+    doc.setDrawColor(...muted);
+    doc.line(12, 193, 112, 193);
+    doc.line(12, 191.5, 12, 194.5);
+    doc.line(112, 191.5, 112, 194.5);
+    text("100 mm scale check", 12, 199, 8);
     const instructions = [
       `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
       `Each grid cell is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).`,
-      "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale on a grid sheet before using it.",
+      "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of this page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
       "Arrange sheets by their sheet row and column. Row labels run vertically along the far left edge; column labels appear only along the top edge of the full grid. Long labels may be shortened; use the full glaze key below."
@@ -154,7 +159,6 @@
       text(lines.join("\n"), 15, y, 10, { lineHeightFactor: 1.3 });
       y += needed;
     });
-    const instructionPages = doc.getNumberOfPages();
 
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
@@ -193,18 +197,7 @@
           const lineY = gridY + row * data.height;
           doc.line(PAGE.margin, lineY, gridX + gridWidth, lineY);
         }
-        doc.setDrawColor(...muted);
-        doc.line(12, 193, 112, 193);
-        doc.line(12, 191.5, 12, 194.5);
-        doc.line(112, 191.5, 112, 194.5);
-        text("100 mm scale check", 12, 199, 8);
-        text("A4 landscape · Print at 100% / Actual size", 285, 196, 8, { align: "right" });
       }
-    }
-    const total = doc.getNumberOfPages();
-    for (let i = 1; i <= total; i++) {
-      doc.setPage(i);
-      text(`Page ${i} of ${total}${i <= instructionPages ? " / Instructions & glaze key" : ""}`, 285, 204, 7, { align: "right" });
     }
     return doc;
   }

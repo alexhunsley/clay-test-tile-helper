@@ -20,16 +20,18 @@ const { pathToFileURL } = require('node:url');
     await page.goto(href);
     assert.equal(await page.title(), 'Ceramic Test Tile Helper');
     assert.equal(await page.locator('#glaze-fields input').count(), 3);
+    assert.deepEqual(await page.locator('#glaze-fields input').evaluateAll(inputs => inputs.map(input => input.value)), ['', '', '']);
     assert.equal(await page.locator('#tile-count').textContent(), '3 x 3 = 9 test tiles');
     await page.locator('#generate').click();
     assert.equal(await page.locator('#project-title').getAttribute('aria-invalid'), 'true');
     assert.match(await page.locator('#project-title-error').textContent(), /Enter a project title/);
+    assert.equal(await page.locator('#glaze-fields input[aria-invalid=true]').count(), 3);
 
     await page.locator('#project-title').fill('Émaux & ash #1');
     await page.locator('#glaze-0').fill('Crème + cobalt');
     await page.locator('#glaze-count').fill('5');
     assert.equal(await page.locator('#glaze-fields input').count(), 5);
-    assert.equal(await page.locator('#glaze-4').inputValue(), '5');
+    assert.equal(await page.locator('#glaze-4').inputValue(), '');
     assert.equal(await page.locator('#glaze-0').inputValue(), 'Crème + cobalt');
     assert.equal(await page.locator('#tile-count').textContent(), '5 x 5 = 25 test tiles');
     await page.locator('#glaze-4').fill('Keep this name');
@@ -45,6 +47,8 @@ const { pathToFileURL } = require('node:url');
     await page.locator('#tile-width').fill('50.25');
     await page.locator('#tile-height').fill('60.5');
     await page.locator('#glaze-1').fill('Blue & white');
+    await page.locator('#glaze-2').fill('Clear');
+    await page.locator('#glaze-3').fill('Ochre');
 
     await page.locator('#share').click();
     const share = await page.locator('#share-url').inputValue();

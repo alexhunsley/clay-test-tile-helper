@@ -73,12 +73,18 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
   const data = helper.validate(valid).data;
   const drawCalls = [];
   const labelCalls = [];
+  const textCalls = [];
   function TrackedPDF(options) {
     const doc = new browser.jspdf.jsPDF({ ...options, compress: false });
     const line = doc.line.bind(doc);
     doc.line = (...args) => { drawCalls.push({ page: doc.getNumberOfPages(), args }); return line(...args); };
     const text = doc.text.bind(doc);
-    doc.text = (...args) => { if (String(args[0]).startsWith('#')) labelCalls.push({ page: doc.getNumberOfPages(), args }); return text(...args); };
+    doc.text = (...args) => {
+      const call = { page: doc.getNumberOfPages(), args };
+      textCalls.push(call);
+      if (String(args[0]).startsWith('#')) labelCalls.push(call);
+      return text(...args);
+    };
     return doc;
   }
   const pdf = helper.createPdf(data, TrackedPDF);
@@ -96,6 +102,13 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
   assert.equal(labelCalls.filter(call => call.page === 5).length, 0); // Interior sheet: no row/column labels.
   const interiorVertical = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 5 && x1 === x2 && y1 === 34 && y2 === 154);
   assert.deepEqual(interiorVertical.map(({ args }) => args[0]), [12, 62]);
+  const scales = textCalls.filter(call => call.args[0] === '100 mm scale check');
+  assert.equal(scales.length, 1);
+  assert.equal(scales[0].page, 1);
+  assert.equal(scales[0].args[2], 199);
+  assert.ok(drawCalls.some(({page, args: [x1, y1, x2, y2]}) => page === 1 && x1 === 12 && x2 === 112 && y1 === 193 && y2 === 193));
+  assert.equal(textCalls.some(call => /^Page \d+ of \d+/.test(call.args[0])), false);
+  assert.equal(textCalls.some(call => call.args[0] === 'A4 landscape · Print at 100% / Actual size'), false);
   const output = pdf.output();
   assert.ok(output.startsWith('%PDF-'));
   assert.ok(output.includes('/FontFile2'));

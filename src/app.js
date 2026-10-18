@@ -32,7 +32,7 @@
       input.type = "text";
       input.maxLength = 100;
       input.required = true;
-      input.value = nameCache[index] ?? String(index + 1);
+      input.value = nameCache[index] ?? "";
       input.setAttribute("aria-describedby", `glaze-${index}-error`);
       const error = document.createElement("p");
       error.id = `glaze-${index}-error`;
