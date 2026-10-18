@@ -6,6 +6,8 @@
   fields.swell = document.getElementById("swell-cells");
   fields.maxWidth = document.getElementById("max-cell-width");
   fields.maxHeight = document.getElementById("max-cell-height");
+  fields.step1Desc = document.getElementById("step-1-desc");
+  fields.step2Desc = document.getElementById("step-2-desc");
   const glazeFields = document.getElementById("glaze-fields");
   const status = document.getElementById("form-status");
   const generate = document.getElementById("generate");

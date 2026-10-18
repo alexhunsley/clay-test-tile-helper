@@ -5,7 +5,7 @@ all JavaScript and the PDF font embedded: no server, installation, or internet
 connection is needed. It can also be hosted by any static web host.
 
 Enter a project title, glaze count, footprint width/height in millimetres,
-horizontal/vertical page margins, and glaze names. Both margins default to
+horizontal/vertical page margins, glaze step descriptions, and glaze names. Both margins default to
 12 mm and apply symmetrically to opposite edges. Zero and fractional margins
 are supported; the grid page count updates when margins change. Glaze names
 start empty and each must contain non-whitespace text.
@@ -20,11 +20,16 @@ rectangles. Cells can cross sheet boundaries in either direction, including a
 single cell larger than one sheet. The initial footprint determines the sheets
 across/down. Swelling expands every cell to fill that combined paper area;
 only a maximum size limit can prevent it from filling an axis. The preview
-shows the common expanded dimensions, which are also included in the instructions.
-Generate PDF downloads an A4 landscape document with instructions,
-a complete numbered glaze key, and as many grid sheets as necessary. The grid
-includes all N × N combinations, including the diagonal. Rows represent the
-first glaze and columns the second glaze.
+shows the common expanded dimensions.
+Generate PDF downloads an A4 landscape document with a checklist and as many
+grid sheets as necessary. The grid includes all N × N combinations, including
+the diagonal. Columns are glaze step 1 and rows are glaze step 2. Step-description
+fields default to "bottom" and "left side", require text, and are saved in
+share links (older links get those defaults).
+The checklist starts with the print-scale hint, then empty square checkboxes
+for waxing feet, placing tiles, glazing each column with its named glaze,
+glazing each row with its named glaze, and wiping feet. It wraps onto further
+pages when needed. The scale check appears only on the first checklist page.
 Every cell has a centered footer in column.row order, followed by the column
 glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
 shrink to stay inside the cell; very small cells require very small type.
@@ -58,8 +63,8 @@ print-setting footer, or page-number footer.
 Printer scaling affects physical dimensions; the page cannot override it.
 Row and column headers both use 10 pt text, without reducing their font size.
 Long names wrap and grow the header bands into the available table area;
-the tile cells retain their footprint (or expanded size). The full glaze key is
-also included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
+the tile cells retain their footprint (or expanded size). Full glaze names are
+also included in the checklist. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
 At the default margins, the usable grid area on the top-left sheet is

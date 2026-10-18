@@ -9,7 +9,7 @@ browser.window=browser; browser.self=browser;
 vm.createContext(browser);
 for(const file of ['vendor/jspdf.umd.min.js','vendor/noto-sans.js','src/core.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),browser,{filename:file});
 const helper=browser.TileHelper;
-const valid={title:'Studio tests',count:'6',width:'50',height:'60',marginH:'12',marginV:'12',swell:false,maxWidth:'0',maxHeight:'0',names:['Ash','Blue','White','Green','Clear','Ochre']};
+const valid={title:'Studio tests',count:'6',width:'50',height:'60',marginH:'12',marginV:'12',swell:false,maxWidth:'0',maxHeight:'0',step1Desc:'bottom',step2Desc:'left side',names:['Ash','Blue','White','Green','Clear','Ochre']};
 fs.mkdirSync(path.join(root,'test-output'),{recursive:true});
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
 
@@ -80,7 +80,7 @@ test('uniform swelling fills the combined sheet area and respects independent li
 });
 
 test('share links restore all settings and Unicode, with defaults for older links',()=>{
-  const raw={...valid,title:'Émaux & clay? #1 + 2',swell:true,maxWidth:'90.25',names:['1','青釉','A&B','<script>alert(1)</script>','Crème + ash','Ochre']};
+  const raw={...valid,title:'Émaux & clay? #1 + 2',swell:true,maxWidth:'90.25',step1Desc:'basé / coat & one',step2Desc:'left + top',names:['1','青釉','A&B','<script>alert(1)</script>','Crème + ash','Ochre']};
   const link=helper.shareUrl(raw,'https://example.test/helper.html?old=1#old');
   assert.deepEqual(JSON.parse(JSON.stringify(helper.readUrl(link))),raw);
   assert.equal(new URL(link).hash,'');assert.equal(new URL(link).searchParams.has('old'),false);
@@ -88,6 +88,7 @@ test('share links restore all settings and Unicode, with defaults for older link
   assert.throws(()=>helper.readUrl('https://example.test/?v=2'),/unsupported/);
   const old=helper.readUrl('https://example.test/?v=1&title=Old&count=1&width=50&height=50&glaze=Ash');
   assert.equal(old.marginH,'12');assert.equal(old.marginV,'12');assert.equal(old.swell,false);assert.equal(old.maxWidth,'0');
+  assert.equal(old.step1Desc,'bottom');assert.equal(old.step2Desc,'left side');
 });
 
 test('PDF clips continuous grid lines at seams and preserves watermarks and first-page-only scale',()=>{
@@ -238,4 +239,29 @@ test('row and column headers remain 10 pt and expand their bands to preserve com
   close(plan.tableWidth,plan.across*plan.area.contentWidth);
   close(plan.tableHeight,plan.down*plan.area.continuationHeight);
   assert.ok(plan.area.labelHeight>=8 && plan.area.labelWidth>=12);
+});
+
+test('instructions contain only the print hint and ordered checkbox tasks using step descriptions',()=>{
+  const {calls,firstGridPage}=render({...valid,count:2,names:['Ash','Blue'],step1Desc:'base coat',step2Desc:'left / top'});
+  const expected=[
+    'Wax feet of tiles',
+    'Place tiles on grid (writing any text on them if necessary)',
+    'Glaze column 1 (base coat) with Ash',
+    'Glaze column 2 (base coat) with Blue',
+    'Glaze row 1 (left / top) with Ash',
+    'Glaze row 2 (left / top) with Blue',
+    'Wipe feet'
+  ];
+  const boxes=calls.filter(c=>c.method==='rect' && c.page<firstGridPage && c.args[2]===3.5 && c.args[3]===3.5 && c.args[4]==='S');
+  assert.equal(boxes.length,expected.length);
+  const items=calls.filter(c=>c.method==='text' && c.page<firstGridPage && c.args[1]===19);
+  assert.deepEqual(items.map(c=>c.args[0]),expected);
+  items.forEach((item,i)=>{assert.equal(item.page,boxes[i].page);close(item.args[2]-3,boxes[i].args[1]);});
+  const intro=calls.filter(c=>c.method==='text' && c.page<firstGridPage).map(c=>c.args[0]);
+  assert.ok(intro.includes('Hints: Print on A4 at 100% / Actual size. Turn off Fit to page. Check the 100 mm scale line length before using.'));
+  assert.equal(intro.some(value=>value==='Glaze key' || value.startsWith('Prepare ') || value.startsWith('Use the row glaze first')),false);
+  assert.ok(helper.validate({...valid,step1Desc:' '}).errors.step1Desc);
+  assert.ok(helper.validate({...valid,step2Desc:'a'.repeat(101)}).errors.step2Desc);
+  const data=helper.validate({...valid,step1Desc:' bottom '}).data;
+  assert.equal(data.step1Desc,'bottom');
 });

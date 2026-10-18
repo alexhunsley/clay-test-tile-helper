@@ -56,6 +56,13 @@
             <div class="field"><label for="margin-vertical">Vertical (mm)</label><input id="margin-vertical" name="marginV" type="number" min="0" step="any" value="12" required aria-describedby="margin-vertical-error"><p class="error" id="margin-vertical-error"></p></div>
           </div>
         </fieldset>
+        <fieldset>
+          <legend>Glaze steps</legend>
+          <div class="glaze-fields">
+            <div class="field"><label for="step-1-desc">Glaze step 1 desc (e.g. 'bottom')</label><input id="step-1-desc" name="step1Desc" type="text" maxlength="100" value="bottom" required aria-describedby="step-1-desc-error"><p class="error" id="step-1-desc-error"></p></div>
+            <div class="field"><label for="step-2-desc">Glaze step 2 desc (e.g. 'left side')</label><input id="step-2-desc" name="step2Desc" type="text" maxlength="100" value="left side" required aria-describedby="step-2-desc-error"><p class="error" id="step-2-desc-error"></p></div>
+          </div>
+        </fieldset>
       </section>
 
       <section class="panel" aria-labelledby="glazes-heading">

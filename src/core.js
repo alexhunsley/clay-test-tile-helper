@@ -100,6 +100,12 @@
     const swell = raw.swell === true;
     const maxWidth = Number(raw.maxWidth ?? 0);
     const maxHeight = Number(raw.maxHeight ?? 0);
+    const step1Desc = String(raw.step1Desc ?? "bottom").trim();
+    const step2Desc = String(raw.step2Desc ?? "left side").trim();
+    for (const [key, value, step] of [["step1Desc", step1Desc, 1], ["step2Desc", step2Desc, 2]]) {
+      if (!value) errors[key] = `Enter a description for glaze step ${step}.`;
+      else if (value.length > 100) errors[key] = "Use 100 characters or fewer.";
+    }
     if (swell) {
       for (const [key, value, minimum] of [["maxWidth", maxWidth, width], ["maxHeight", maxHeight, height]]) {
         if (String(raw[key] ?? 0).trim() === "" || !Number.isFinite(value) || value < 0) errors[key] = "Enter 0 for no limit, or a positive size in mm.";
@@ -126,7 +132,7 @@
       const plan = layout(count, width, height, marginH, marginV, { names });
       if (plan.pages > MAX_GRID_PAGES) errors.count = `This needs ${plan.pages.toLocaleString()} grid sheets. Reduce the glaze count or footprint to use at most ${MAX_GRID_PAGES}.`;
     }
-    return { errors, data: { title, count, width, height, marginH, marginV, swell, maxWidth, maxHeight, names } };
+    return { errors, data: { title, count, width, height, marginH, marginV, swell, maxWidth, maxHeight, step1Desc, step2Desc, names } };
   }
 
   function shareUrl(raw, href) {
@@ -137,6 +143,8 @@
     for (const key of ["title", "count", "width", "height", "marginH", "marginV"]) url.searchParams.set(key, String(raw[key] ?? PAGE.margin));
     url.searchParams.set("swell", raw.swell === true ? "1" : "0");
     for (const key of ["maxWidth", "maxHeight"]) url.searchParams.set(key, String(raw[key] ?? 0));
+    url.searchParams.set("step1Desc", String(raw.step1Desc ?? "bottom"));
+    url.searchParams.set("step2Desc", String(raw.step2Desc ?? "left side"));
     for (const name of raw.names) url.searchParams.append("glaze", name);
     return url.href;
   }
@@ -145,7 +153,7 @@
     const params = new URL(href).searchParams;
     if (!params.has("v")) return null;
     if (params.get("v") !== "1") throw new Error("This link uses an unsupported form version.");
-    return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", names: params.getAll("glaze") };
+    return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", step1Desc: params.get("step1Desc") ?? "bottom", step2Desc: params.get("step2Desc") ?? "left side", names: params.getAll("glaze") };
   }
 
   function createPdf(data, JsPDF, renderOptions = {}) {
@@ -159,7 +167,6 @@
     const plan = layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
     const area = plan.area;
     const left = area.marginH;
-    const bodyWidth = area.contentWidth - 6;
     const ink = [45, 55, 47];
     const muted = [90, 100, 91];
     const labelFill = [243, 244, 238];
@@ -292,43 +299,48 @@
     }
 
     if (!renderOptions.tableOnly) {
-      pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
+      pageHeading("Ceramic Test Tile Helper / Checklist");
       doc.setDrawColor(...muted);
       doc.line(left, area.bottom - 7, left + 100, area.bottom - 7);
       doc.line(left, area.bottom - 8.5, left, area.bottom - 5.5);
       doc.line(left + 100, area.bottom - 8.5, left + 100, area.bottom - 5.5);
       text("100 mm scale check", left, area.bottom - 1, 8);
-      const instructions = [
-        `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-        `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.cellWidth.toFixed(3))} × ${Number(plan.cellHeight.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
-        "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
-        "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
-        "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-        "Trim the page margins, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
+      const hints = "Hints: Print on A4 at 100% / Actual size. Turn off Fit to page. Check the 100 mm scale line length before using.";
+      const items = [
+        "Wax feet of tiles",
+        "Place tiles on grid (writing any text on them if necessary)",
+        ...data.names.map((name, i) => `Glaze column ${i + 1} (${data.step1Desc}) with ${name}`),
+        ...data.names.map((name, i) => `Glaze row ${i + 1} (${data.step2Desc}) with ${name}`),
+        "Wipe feet"
       ];
       let y = area.marginV + 30;
       const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
       function nextInstructionPage() {
         doc.addPage();
-        pageHeading("Ceramic Test Tile Helper / Instructions & glaze key continued");
+        pageHeading("Ceramic Test Tile Helper / Checklist continued");
         y = area.marginV + 30;
       }
-      function paragraph(value, gap = 4) {
+      doc.setFontSize(10);
+      for (const line of doc.splitTextToSize(hints, area.contentWidth)) {
+        if (y + 5 > bodyBottom()) nextInstructionPage();
+        text(line, left, y, 10);
+        y += 5;
+      }
+      y += 7;
+      for (const item of items) {
         doc.setFontSize(10);
-        const lines = doc.splitTextToSize(value, bodyWidth);
+        const lines = doc.splitTextToSize(item, area.contentWidth - 8);
+        if (y + lines.length * 5 + 4 > bodyBottom()) nextInstructionPage();
+        doc.setDrawColor(...muted);
+        doc.setLineWidth(.25);
+        doc.rect(left, y - 3, 3.5, 3.5, "S");
         for (const line of lines) {
           if (y + 5 > bodyBottom()) nextInstructionPage();
-          text(line, left + 3, y, 10);
+          text(line, left + 7, y, 10);
           y += 5;
         }
-        y += gap;
+        y += 4;
       }
-      instructions.forEach(value => paragraph(value));
-      if (y + 20 > bodyBottom()) nextInstructionPage();
-      y += 5;
-      text("Glaze key", left, y, 13);
-      y += 10;
-      data.names.forEach((name, i) => paragraph(`#${i + 1}  ${name}`, 3));
     }
 
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
