@@ -115,7 +115,7 @@
     } finally {
       generate.disabled = false;
       preview.disabled = false;
-      generate.textContent = "Generate PDF ↓";
+      generate.textContent = "Download PDF ↓";
     }
   });
 
@@ -143,7 +143,7 @@
       status.textContent = "The assembly preview could not be generated. Please try again.";
     } finally {
       generate.disabled = preview.disabled = false;
-      preview.textContent = "Preview table assembly ↓";
+      preview.textContent = "Download preview image ↓";
     }
   });
 

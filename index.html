@@ -78,7 +78,7 @@
 
       <section class="output-panel" aria-labelledby="output-heading">
         <div><h2 id="output-heading">Printable test grid</h2><p id="layout-summary" class="hint" aria-live="polite"></p></div>
-        <div class="actions"><button id="generate" type="submit">Generate PDF <span aria-hidden="true">↓</span></button><button id="preview" class="secondary" type="button">Preview table assembly <span aria-hidden="true">↓</span></button><button id="share" class="secondary" type="button">Share filled form <span aria-hidden="true">↗</span></button></div>
+        <div class="actions"><button id="generate" type="submit">Download PDF <span aria-hidden="true">↓</span></button><button id="preview" class="secondary" type="button">Download preview image <span aria-hidden="true">↓</span></button><button id="share" class="secondary" type="button">Share link to this setup <span aria-hidden="true">↗</span></button></div>
         <p id="form-status" role="status" aria-live="polite"></p>
         <div id="share-result" hidden><label for="share-url">Filled-form link</label><input id="share-url" type="text" readonly><p class="hint" id="share-note"></p></div>
       </section>
@@ -1223,7 +1223,7 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
     } finally {
       generate.disabled = false;
       preview.disabled = false;
-      generate.textContent = "Generate PDF ↓";
+      generate.textContent = "Download PDF ↓";
     }
   });
 
@@ -1251,7 +1251,7 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       status.textContent = "The assembly preview could not be generated. Please try again.";
     } finally {
       generate.disabled = preview.disabled = false;
-      preview.textContent = "Preview table assembly ↓";
+      preview.textContent = "Download preview image ↓";
     }
   });
 

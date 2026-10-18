@@ -21,7 +21,7 @@ single cell larger than one sheet. The initial footprint determines the sheets
 across/down. Swelling expands every cell to fill that combined paper area;
 only a maximum size limit can prevent it from filling an axis. The preview
 shows the common expanded dimensions.
-Generate PDF downloads an A4 landscape document with a checklist and as many
+Download PDF downloads an A4 landscape document with a checklist and as many
 grid sheets as necessary. The grid includes all N × N combinations, including
 the diagonal. Columns are glaze step 1 and rows are glaze step 2. Step-description
 fields default to "bottom" and "left side", require text, and are saved in
@@ -34,7 +34,7 @@ Every cell has a centered footer in column.row order, followed by the column
 glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
 shrink to stay inside the cell; very small cells require very small type.
 
-**Preview table assembly** downloads a PNG of the grid sheets joined in place,
+**Download preview image** downloads a PNG of the grid sheets joined in place,
 with the page margins removed and matching semicircles touching. It uses the
 same table renderer as the PDF, including clipped cells, labels, watermarks and
 edge letters. The image's longest side is 3,200 pixels. Dotted lines mark
@@ -81,7 +81,7 @@ space for headings and grid labels. Instructions wrap onto more pages as needed.
 To prevent accidental huge documents, the MVP accepts up to
 100 glazes and 400 grid sheets.
 
-Share filled form encodes the values into URL query parameters, including
+Share link to this setup encodes the values into URL query parameters, including
 Unicode, punctuation and page margins. Older links use the 12 mm defaults.
 The copy button has a selectable-text fallback.
 For links other people can open directly, host the same file at a web URL.
