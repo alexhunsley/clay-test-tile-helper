@@ -13,7 +13,7 @@
     await previewFont;
     const helper = root.TileHelper;
     const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
-    const scale = 1600 / Math.max(plan.tableWidth, plan.tableHeight);
+    const scale = 3200 / Math.max(plan.tableWidth, plan.tableHeight);
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(plan.tableWidth * scale));
     canvas.height = Math.max(1, Math.round(plan.tableHeight * scale));
@@ -103,9 +103,9 @@
     // last makes them bisect the paired join markers as well as the grid.
     ctx.save();
     ctx.strokeStyle = "#515a52";
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 3;
     ctx.lineCap = "round";
-    ctx.setLineDash([.01, 5]);
+    ctx.setLineDash([.02, 10]);
     for (const slice of plan.columnBands.slice(1)) {
       const x = slice.offset * scale;
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();

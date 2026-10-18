@@ -32,7 +32,7 @@ shrink to stay inside the cell; very small cells require very small type.
 **Preview table assembly** downloads a PNG of the grid sheets joined in place,
 with the page margins removed and matching semicircles touching. It uses the
 same table renderer as the PDF, including clipped cells, labels, watermarks and
-edge letters. The image's longest side is 1,600 pixels. Dotted lines mark
+edge letters. The image's longest side is 3,200 pixels. Dotted lines mark
 internal paper edges and bisect matching join
 markers in the preview only; the PDF has no dotted seam lines. It is an
 overview rather than a print-scale template. It works offline with the bundled
