@@ -40,7 +40,7 @@
         </fieldset>
         <fieldset>
           <label class="checkbox-label" for="swell-cells"><input id="swell-cells" name="swell" type="checkbox" aria-controls="swell-limits">Swell cells to available paper</label>
-          <p class="hint footprint-hint">Footprint becomes the minimum size. Cells can vary between sheets. 0 means no limit.</p>
+          <p class="hint footprint-hint">Footprint becomes the minimum size. Every cell uses the same expanded width and height. 0 means no limit.</p>
           <div id="swell-limits" class="dimensions">
             <div class="field"><label for="max-cell-width">Max cell width (mm)</label><input id="max-cell-width" name="maxWidth" type="number" min="0" step="any" value="0" disabled required aria-describedby="max-cell-width-error"><p class="error" id="max-cell-width-error"></p></div>
             <span aria-hidden="true"></span>

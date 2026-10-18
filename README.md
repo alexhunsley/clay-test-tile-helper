@@ -14,11 +14,11 @@ start empty and each must contain non-whitespace text.
 footprint as a minimum and expand cells to fill the existing sheet layout.
 Maximum cell width and height are enabled with this option; 0 means no limit.
 A positive maximum must be at least the footprint size. Width and height grow
-independently. Every sheet column shares one cell width, and every sheet row
-shares one cell height, so adjoining sheets align. Partial final sheets expand
-too, so cell sizes can differ between sheets. Limits can leave unused space.
-The original cell counts and sheets across/down remain unchanged. The preview
-shows the size range; each PDF sheet states its actual cell dimensions.
+independently, with the same expanded width and height applied to every cell on
+every sheet. Whole cells are redistributed between sheets to find the largest
+uniform size that preserves the original sheets across/down. Limits and whole
+cell boundaries can leave unused space. The preview and each PDF sheet show
+the common expanded dimensions.
 Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the

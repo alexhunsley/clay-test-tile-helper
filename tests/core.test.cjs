@@ -76,7 +76,7 @@ test('query links round-trip Unicode, punctuation, names and fractional values',
   assert.equal(oldLink.maxWidth, '0');
 });
 
-test('swelling fills every band independently, keeps pagination and respects independent size limits', () => {
+test('swelling enlarges every cell uniformly, keeps sheet counts and respects independent size limits', () => {
   for (const [count, width, height, marginH, marginV] of [[6,50,60,12,12], [11,33.5,47.25,3.5,4.25], [1,50,60,0,0], [100,5,5,12,12]]) {
     const original = helper.layout(count, width, height, marginH, marginV);
     for (const [maxWidth, maxHeight] of [[0,0], [width + 3,0], [0,height + 10], [width,height], [width + 7,height + 2]]) {
@@ -86,15 +86,21 @@ test('swelling fills every band independently, keeps pagination and respects ind
         [plan.columnBands, original.columnBands, width, maxWidth, plan.area.gridWidth, plan.area.continuationWidth],
         [plan.rowBands, original.rowBands, height, maxHeight, plan.area.gridHeight, plan.area.continuationHeight]
       ]) {
+        assert.equal(bands.length, baseBands.length);
+        assert.equal(bands.reduce((sum, band) => sum + band.count, 0), count);
+        const commonSize = bands[0].cellSize;
         bands.forEach((band, i) => {
           const available = i === 0 ? firstSpace : laterSpace;
-          assert.equal(band.start, baseBands[i].start);
-          assert.equal(band.count, baseBands[i].count);
+          assert.equal(band.start, i === 0 ? 0 : bands[i - 1].start + bands[i - 1].count);
+          assert.equal(band.cellSize, commonSize);
           assert.ok(band.cellSize >= minSize);
           assert.ok(band.cellSize * band.count <= available + 1e-8);
           if (maxSize > 0) assert.ok(band.cellSize <= maxSize + 1e-8);
-          assert.ok(Math.abs(band.cellSize - Math.min(available / band.count, maxSize || Infinity)) < 1e-8);
         });
+        // Any further enlargement must hit the cap or require another sheet.
+        const larger = commonSize + 1e-5;
+        const capacity = Math.floor(firstSpace / larger) + (bands.length - 1) * Math.floor(laterSpace / larger);
+        assert.ok((maxSize > 0 && larger > maxSize) || capacity < count);
       }
     }
   }
@@ -116,9 +122,14 @@ test('swelling fills every band independently, keeps pagination and respects ind
   }
   const pdf = helper.createPdf(data, TrackedPDF);
   assert.equal(pdf.getNumberOfPages(), 7);
-  // The final interior sheet fills both axes, despite containing only one column.
-  assert.ok(rects.some(({page,args:[x,y,w,h]}) => page === 7 && x === 12 && y === 20 && w === 273 && h === 178));
-  assert.ok(textCalls.some(({page,args}) => page === 7 && String(args[0]).includes('cells 273 × 89 mm')));
+  // Six columns redistribute as three per sheet; all cells are 87 × 77 mm.
+  const uniform = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
+  assert.ok(uniform.columnBands.every(band => Math.abs(band.cellSize - 87) < 1e-8 && band.count === 3));
+  assert.ok(uniform.rowBands.every(band => Math.abs(band.cellSize - 77) < 1e-8 && band.count === 2));
+  assert.ok(rects.some(({page,args:[x,y,w,h]}) => page === 7 && x === 12 && y === 20 && Math.abs(w - 261) < 1e-8 && Math.abs(h - 154) < 1e-8));
+  const sheetHeadings = textCalls.filter(({args}) => String(args[0]).startsWith('Grid /'));
+  assert.equal(sheetHeadings.length, 6);
+  assert.ok(sheetHeadings.every(({args}) => String(args[0]).includes('cells 87 × 77 mm')));
   fs.writeFileSync(path.join(root, 'test-output/swelled.pdf'), Buffer.from(pdf.output('arraybuffer')));
 });
 

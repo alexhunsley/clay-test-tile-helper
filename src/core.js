@@ -17,20 +17,35 @@
     const columnsPerPage = Math.min(count, Math.floor((area.gridWidth + 1e-9) / width));
     const rowsPerPage = Math.min(count, Math.floor((area.gridHeight + 1e-9) / height));
     if (columnsPerPage < 1 || rowsPerPage < 1) return null;
-    function bands(firstCapacity, firstSpace, continuationSpace, cellSize, maxSize) {
-      const result = [];
-      const capacity = Math.floor((continuationSpace + 1e-9) / cellSize);
-      for (let start = 0; start < count;) {
-        const size = Math.min(count - start, start === 0 ? firstCapacity : capacity);
-        const space = start === 0 ? firstSpace : continuationSpace;
-        const expanded = options.swell ? Math.max(cellSize, Math.min(space / size, maxSize > 0 ? maxSize : Infinity)) : cellSize;
-        result.push({ start, count: size, cellSize: expanded });
-        start += size;
+    function bands(firstSpace, continuationSpace, cellSize, maxSize) {
+      function partition(size) {
+        const result = [];
+        for (let start = 0; start < count;) {
+          const space = start === 0 ? firstSpace : continuationSpace;
+          const capacity = Math.floor((space + 1e-9) / size);
+          const number = Math.min(count - start, capacity);
+          result.push({ start, count: number, cellSize: size });
+          start += number;
+        }
+        return result;
       }
-      return result;
+      const original = partition(cellSize);
+      if (!options.swell) return original;
+      const sheets = original.length;
+      let low = cellSize;
+      let high = Math.min(firstSpace, (firstSpace + (sheets - 1) * continuationSpace) / count, maxSize > 0 ? maxSize : Infinity);
+      // Find the largest common cell size that fits every cell on the original
+      // number of sheets. Redistribute whole cells between sheets as needed.
+      for (let i = 0; i < 60; i++) {
+        const candidate = (low + high) / 2;
+        const capacity = Math.floor((firstSpace + 1e-9) / candidate) + (sheets - 1) * Math.floor((continuationSpace + 1e-9) / candidate);
+        if (capacity >= count) low = candidate;
+        else high = candidate;
+      }
+      return partition(Math.max(cellSize, low));
     }
-    const columnBands = bands(columnsPerPage, area.gridWidth, area.continuationWidth, width, options.maxWidth);
-    const rowBands = bands(rowsPerPage, area.gridHeight, area.continuationHeight, height, options.maxHeight);
+    const columnBands = bands(area.gridWidth, area.continuationWidth, width, options.maxWidth);
+    const rowBands = bands(area.gridHeight, area.continuationHeight, height, options.maxHeight);
     const across = columnBands.length;
     const down = rowBands.length;
     return { columnsPerPage, rowsPerPage, columnBands, rowBands, across, down, pages: across * down, area };
@@ -207,7 +222,7 @@
     text("100 mm scale check", left, area.bottom - 1, 8);
     const instructions = [
       `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` Cells expand to fill each sheet, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}. Cell sizes can vary between sheets.` : ""}`,
+      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.columnBands[0].cellSize.toFixed(3))} × ${Number(plan.rowBands[0].cellSize.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
