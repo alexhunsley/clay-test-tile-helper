@@ -1,12 +1,12 @@
 (function (root) {
   "use strict";
-  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 58, gridWidth: 261, gridHeight: 140, continuationWidth: 273, continuationHeight: 164 });
+  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 44, gridWidth: 261, gridHeight: 154, continuationWidth: 273, continuationHeight: 178 });
   const MAX_GLAZES = 100;
   const MAX_GRID_PAGES = 400;
 
   function geometry(marginH = PAGE.margin, marginV = PAGE.margin) {
     const contentWidth = PAGE.width - 2 * marginH;
-    const gridTop = marginV + 22;
+    const gridTop = marginV + 8;
     const bottom = PAGE.height - marginV;
     return { marginH, marginV, contentWidth, gridTop, bottom, gridWidth: contentWidth - PAGE.labelWidth, gridHeight: bottom - gridTop - PAGE.labelHeight, continuationWidth: contentWidth, continuationHeight: bottom - gridTop };
   }
@@ -142,6 +142,28 @@
       fitted(subtitle, left, area.marginV + 14, area.contentWidth, 8, 9);
     }
 
+    function watermark(x, y, width, height) {
+      const angle = Math.atan2(height, width);
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      doc.setFontSize(1);
+      const lengthPerPoint = doc.getTextWidth(data.title);
+      const heightPerPoint = 25.4 / 72;
+      // Fit the rotated text's bounding box inside the cells, with space at both ends.
+      const size = Math.min(120,
+        width * .88 / (lengthPerPoint * cos + heightPerPoint * sin),
+        height * .88 / (lengthPerPoint * sin + heightPerPoint * cos));
+      const length = lengthPerPoint * size;
+      const baselineOffset = heightPerPoint * size * .3;
+      const startX = x + width / 2 - length * cos / 2 + baselineOffset * sin;
+      const startY = y + height / 2 + length * sin / 2 + baselineOffset * cos;
+      doc.saveGraphicsState();
+      doc.rect(x, y, width, height).clip().discardPath();
+      doc.setFontSize(size);
+      doc.setTextColor(230, 233, 228);
+      doc.text(data.title, startX, startY, { angle: angle * 180 / Math.PI });
+      doc.restoreGraphicsState();
+    }
+
     pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
     doc.setDrawColor(...muted);
     doc.line(left, area.bottom - 7, left + 100, area.bottom - 7);
@@ -193,7 +215,8 @@
         const gridY = area.gridTop + labelHeight;
         const gridWidth = columns * data.width;
         const gridHeight = rows * data.height;
-        pageHeading(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${data.width} × ${data.height} mm`);
+        fitted(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${data.width} × ${data.height} mm`, left, area.marginV, area.contentWidth, 8, 9);
+        watermark(gridX, gridY, gridWidth, gridHeight);
 
         doc.setFillColor(...labelFill);
         if (showColumnLabels) doc.rect(left, area.gridTop, labelWidth + gridWidth, labelHeight, "F");

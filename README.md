@@ -17,7 +17,10 @@ first glaze and columns the second glaze.
 Cells retain their exact requested width and height in PDF coordinates. Page
 breaks always fall between whole cells. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost
-sheets. Continuation sheets reclaim the space from the omitted labels. Print at
+sheets. Continuation sheets reclaim the space from the omitted labels. On grid
+pages, the project title is a faint diagonal watermark across the cells; its
+angle follows each sheet's grid from bottom left to top right. The instructions
+keep the normal title heading. Print at
 **100% / Actual size**, with A4 landscape selected, and check the 100 mm scale
 in the footer of the first instructions page. Grid sheets have no scale check,
 print-setting footer, or page-number footer.
@@ -27,7 +30,7 @@ always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
 At the default margins, the usable grid area on the top-left sheet is
-261 × 140 mm, after allowing for titles, labels and margins. Sheets without row labels gain
+261 × 154 mm, after allowing for the sheet heading, labels and margins. Sheets without row labels gain
 12 mm of width; sheets without column labels gain 24 mm of height.
 Each dimension must be positive and fit
 inside the area available at the chosen margins. Horizontal margins are limited

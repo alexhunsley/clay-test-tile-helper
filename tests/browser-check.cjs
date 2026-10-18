@@ -81,7 +81,7 @@ const { pathToFileURL } = require('node:url');
     await download.saveAs(path.join(output, 'browser-download.pdf'));
     assert.equal(download.suggestedFilename(), 'Émaux-ash-1.pdf');
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
-    assert.match(await page.locator('#form-status').textContent(), /4 pages/);
+    assert.match(await page.locator('#form-status').textContent(), /3 pages/);
     assert.ok((await fs.stat(path.join(output, 'browser-download.pdf'))).size > 1000);
     await page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true });
 

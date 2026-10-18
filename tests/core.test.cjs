@@ -19,7 +19,7 @@ test('validation rejects missing fields, fractional counts, non-finite dimension
   const invalid = [
     [{ title: '' }, 'title'], [{ count: '2.5' }, 'count'], [{ count: '0' }, 'count'],
     [{ count: '101' }, 'count'], [{ width: '' }, 'width'], [{ height: '-2' }, 'height'],
-    [{ width: 'Infinity' }, 'width'], [{ width: '261.01' }, 'width'], [{ height: '140.01' }, 'height'],
+    [{ width: 'Infinity' }, 'width'], [{ width: '261.01' }, 'width'], [{ height: '154.01' }, 'height'],
     [{ marginH: '' }, 'marginH'], [{ marginV: '-1' }, 'marginV'], [{ marginH: 'Infinity' }, 'marginH'],
     [{ marginH: '96' }, 'marginH'], [{ marginV: '66' }, 'marginV'],
     [{ names: ['', 'Blue', 'White', 'Green', 'Clear'] }, 'name-0']
@@ -52,7 +52,7 @@ test('pagination covers every cell exactly once without splitting cells, includi
   assert.equal(plan.across, 1);
   assert.equal(plan.down, 3);
   assert.equal(helper.layout(13, 47.4, 31).columnsPerPage, 5);
-  const expanded = helper.layout(20, 27, 36);
+  const expanded = helper.layout(20, 27, 40);
   assert.equal(expanded.columnBands[0].count, 9);
   assert.equal(expanded.columnBands[1].count, 10);
   assert.equal(expanded.rowBands[0].count, 3);
@@ -85,7 +85,7 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
     doc.line = (...args) => { drawCalls.push({ page: doc.getNumberOfPages(), args }); return line(...args); };
     const text = doc.text.bind(doc);
     doc.text = (...args) => {
-      const call = { page: doc.getNumberOfPages(), args };
+      const call = { page: doc.getNumberOfPages(), args, color: doc.getTextColor(), size: doc.getFontSize() };
       textCalls.push(call);
       if (String(args[0]).startsWith('#')) labelCalls.push(call);
       return text(...args);
@@ -96,16 +96,16 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
   assert.equal(pdf.getNumberOfPages(), 7); // One instructions/key page plus six grid sheets.
   assert.ok(Math.abs(pdf.internal.pageSize.getWidth() - 297) < .001);
   assert.ok(Math.abs(pdf.internal.pageSize.getHeight() - 210) < .001);
-  const vertical = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 2 && x1 === x2 && y1 === 34 && y2 === 178);
+  const vertical = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 2 && x1 === x2 && y1 === 20 && y2 === 164);
   assert.deepEqual(vertical.map(({ args }) => args[0]), [24, 74, 124, 174, 224, 274]);
   const horizontal = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 2 && x1 === 12 && x2 === 274 && y1 === y2);
-  assert.deepEqual(horizontal.map(({ args }) => args[1]), [58, 118, 178]);
+  assert.deepEqual(horizontal.map(({ args }) => args[1]), [44, 104, 164]);
   assert.equal(labelCalls.filter(call => call.page === 2 && call.args[3]?.angle === 90).length, 2);
   assert.equal(labelCalls.filter(call => call.page === 3 && call.args[3]?.angle === 90).length, 0);
   assert.equal(labelCalls.filter(call => call.page === 3).length, 1); // Top edge continuation: column #6 only.
   assert.equal(labelCalls.filter(call => call.page === 4).length, 2); // Left edge continuation: rows #3 and #4 only.
   assert.equal(labelCalls.filter(call => call.page === 5).length, 0); // Interior sheet: no row/column labels.
-  const interiorVertical = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 5 && x1 === x2 && y1 === 34 && y2 === 154);
+  const interiorVertical = drawCalls.filter(({ page, args: [x1,y1,x2,y2] }) => page === 5 && x1 === x2 && y1 === 20 && y2 === 140);
   assert.deepEqual(interiorVertical.map(({ args }) => args[0]), [12, 62]);
   const scales = textCalls.filter(call => call.args[0] === '100 mm scale check');
   assert.equal(scales.length, 1);
@@ -114,6 +114,24 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
   assert.ok(drawCalls.some(({page, args: [x1, y1, x2, y2]}) => page === 1 && x1 === 12 && x2 === 112 && y1 === 191 && y2 === 191));
   assert.equal(textCalls.some(call => /^Page \d+ of \d+/.test(call.args[0])), false);
   assert.equal(textCalls.some(call => call.args[0] === 'A4 landscape · Print at 100% / Actual size'), false);
+  for (let page = 2; page <= pdf.getNumberOfPages(); page++) {
+    const titles = textCalls.filter(call => call.page === page && call.args[0] === data.title);
+    assert.equal(titles.length, 1);
+    const title = titles[0];
+    const band = planBand(page);
+    const expectedAngle = Math.atan2(band.height, band.width) * 180 / Math.PI;
+    assert.ok(Math.abs(title.args[3].angle - expectedAngle) < 1e-8);
+    const channels = title.color.match(/[a-f0-9]{2}/g).map(channel => parseInt(channel, 16));
+    assert.ok(channels.every(channel => channel >= 225 && channel <= 240));
+    assert.ok(title.size > 17);
+  }
+  function planBand(page) {
+    const plan = helper.layout(data.count, data.width, data.height);
+    const i = page - 2;
+    return { width: plan.columnBands[i % plan.across].count * data.width, height: plan.rowBands[Math.floor(i / plan.across)].count * data.height };
+  }
+  const instructionTitle = textCalls.find(call => call.page === 1 && call.args[0] === data.title);
+  assert.equal(instructionTitle.args[3].angle, undefined);
   const output = pdf.output();
   assert.ok(output.startsWith('%PDF-'));
   assert.ok(output.includes('/FontFile2'));
@@ -133,7 +151,7 @@ test('long names wrap through additional key pages and still generate all grid s
 
 test('custom margins reclaim space, preserve cell sizes, constrain PDF content and round-trip in links', () => {
   assert.equal(helper.layout(5, 54.5, 62, 12, 12).pages, 6);
-  assert.equal(helper.layout(5, 54.5, 62, 5, 5).pages, 3);
+  assert.equal(helper.layout(5, 54.5, 62, 5, 5).pages, 2);
   const raw = { ...valid, marginH: '3.5', marginV: '4.25' };
   assert.deepEqual(JSON.parse(JSON.stringify(helper.readUrl(helper.shareUrl(raw, 'file:///tmp/index.html')))), raw);
   assert.ok(helper.validate({ ...valid, width: 270 }).errors.width);
@@ -161,7 +179,7 @@ test('custom margins reclaim space, preserve cell sizes, constrain PDF content a
     assert.ok(captions.every(({args}) => args[2] >= marginV && args[2] <= 210 - marginV));
     // The grid's two cells stay 20 mm wide and 25 mm high at every margin setting.
     const firstRows = helper.layout(2, 20, 25, marginH, marginV).rowsPerPage;
-    assert.ok(rectangles.some(({args: [x, y, w, h]}) => x === marginH && y === marginV + 22 && w === 52 && h === 24 + firstRows * 25));
+    assert.ok(rectangles.some(({args: [x, y, w, h]}) => x === marginH && y === marginV + 8 && w === 52 && h === 24 + firstRows * 25));
     if (marginH === 95.5) fs.writeFileSync(path.join(root, 'test-output/large-margins.pdf'), Buffer.from(pdf.output('arraybuffer')));
   }
 });
