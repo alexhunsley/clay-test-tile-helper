@@ -32,7 +32,11 @@ shrink to stay inside the cell; very small cells require very small type.
 With swelling off, cells retain their exact requested width and height in PDF
 coordinates. Page boundaries can cut through cells, labels and text. Trim the
 page margins and the sheet-position headers, then join the table portions to
-restore the continuous grid. Internal paper edges do not introduce extra grid
+restore the continuous grid. Every joining edge has a medium-grey semicircle
+with a white letter at its midpoint. Match identical letters on adjacent sheets;
+each join has its own code (A–Z, then AA, AB, and so on). The flat side sits
+exactly on the cut edge; outside edges have no marker.
+Internal paper edges do not introduce extra grid
 lines. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost
 sheets. Continuation sheets reclaim the space from the omitted labels. On grid

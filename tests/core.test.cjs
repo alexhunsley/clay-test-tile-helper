@@ -19,7 +19,7 @@ function render(raw){
   const calls=[];
   function TrackedPDF(options){
     const doc=new browser.jspdf.jsPDF({...options,compress:false});
-    for(const method of ['line','rect','text','clip']){
+    for(const method of ['line','rect','circle','text','clip']){
       const original=doc[method].bind(doc);
       doc[method]=(...args)=>{calls.push({method,page:doc.getNumberOfPages(),args,color:doc.getTextColor()});return original(...args);};
     }
@@ -160,4 +160,43 @@ test('margins constrain the combined canvas; narrow instructions and long names 
   }
   const names=Array.from({length:25},(_,i)=>`Glaze ${i+1}: ${'very long glaze name '.repeat(4)}`.slice(0,100));
   assert.ok(render({...valid,count:25,width:20.5,height:25.25,names}).firstGridPage>2);
+});
+
+test('join markers pair unique white letters on opposite midpoints of every internal edge',()=>{
+  for(const changes of [{swell:true},{swell:false},{width:200,height:150,swell:true}]){
+    const {calls,plan,firstGridPage}=render({...valid,...changes});
+    const circles=calls.filter(c=>c.method==='circle');
+    const letters=calls.filter(c=>c.method==='text' && /^[A-Z]+$/.test(c.args[0]) && c.color==='#ffffff');
+    const joins=plan.down*(plan.across-1)+(plan.down-1)*plan.across;
+    assert.equal(circles.length,joins*2);
+    assert.equal(letters.length,joins*2);
+    const pairs=new Map();
+    letters.forEach((letter,i)=>{
+      const circle=circles[i];
+      assert.equal(letter.page,circle.page);
+      const index=circle.page-firstGridPage;
+      const row=Math.floor(index/plan.across),col=index%plan.across;
+      const width=plan.columnBands[col].extent,height=plan.rowBands[row].extent;
+      const [x,y,radius,style]=circle.args;
+      assert.equal(style,'F');assert.ok(radius>0 && radius<=6);
+      let edge;
+      if(x===12){edge='left';assert.ok(col>0);close(y,20+height/2);}
+      else if(Math.abs(x-(12+width))<1e-8){edge='right';assert.ok(col<plan.across-1);close(y,20+height/2);}
+      else if(y===20){edge='top';assert.ok(row>0);close(x,12+width/2);}
+      else {edge='bottom';assert.ok(row<plan.down-1);close(y,20+height);close(x,12+width/2);}
+      const code=letter.args[0];
+      if(!pairs.has(code))pairs.set(code,[]);
+      pairs.get(code).push({row,col,edge,radius});
+    });
+    assert.equal(pairs.size,joins);
+    for(const pair of pairs.values()){
+      assert.equal(pair.length,2);
+      const [a,b]=pair;close(a.radius,b.radius);
+      if(a.row===b.row){assert.equal(b.col,a.col+1);assert.equal(a.edge,'right');assert.equal(b.edge,'left');}
+      else {assert.equal(b.row,a.row+1);assert.equal(b.col,a.col);assert.equal(a.edge,'bottom');assert.equal(b.edge,'top');}
+    }
+    if(joins>26)assert.ok(pairs.has('AA'));
+  }
+  const single=render({...valid,count:1,width:50,height:50,names:['Ash']});
+  assert.equal(single.calls.filter(c=>c.method==='circle').length,0);
 });

@@ -759,6 +759,31 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       doc.restoreGraphicsState();
     }
 
+    function joinLetter(index) {
+      let result = "";
+      for (let value = index + 1; value > 0; value = Math.floor((value - 1) / 26)) {
+        result = String.fromCharCode(65 + (value - 1) % 26) + result;
+      }
+      return result;
+    }
+
+    function joinMarker(letter, edge, x, y, radius) {
+      // The sheet viewport clips a circle centered on its cut edge into a
+      // semicircle. The matching sheet supplies the other half.
+      doc.setFillColor(128, 128, 128);
+      doc.circle(x, y, radius, "F");
+      doc.setFontSize(1);
+      const horizontalEdge = edge === "top" || edge === "bottom";
+      const availableWidth = radius * (horizontalEdge ? 1.3 : .85);
+      const size = Math.min(12, availableWidth / Math.max(doc.getTextWidth(letter), .000001), radius * .75 / (25.4 / 72));
+      const offset = radius * .45;
+      const textX = x + (edge === "left" ? offset : edge === "right" ? -offset : 0);
+      const textY = y + (edge === "top" ? offset : edge === "bottom" ? -offset : 0);
+      doc.setFontSize(size);
+      doc.setTextColor(255, 255, 255);
+      doc.text(letter, textX, textY + size * (25.4 / 72) * .35, { align: "center" });
+    }
+
     pageHeading("Ceramic Test Tile Helper / Instructions & glaze key");
     doc.setDrawColor(...muted);
     doc.line(left, area.bottom - 7, left + 100, area.bottom - 7);
@@ -771,7 +796,7 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-      "Trim the page margins and sheet-position headers, then join sheets by their sheet row and column to assemble one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
+      "Trim the page margins and sheet-position headers, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
     ];
     let y = area.marginV + 30;
     const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
@@ -849,6 +874,23 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
             const pair = `${col + 1}.${row + 1} ${data.names[col]} / ${data.names[row]}`;
             cellFooter(pair, projectX(PAGE.labelWidth + col * cellWidth), projectY(PAGE.labelHeight + row * cellHeight), cellWidth, cellHeight, viewport);
           }
+        }
+        const horizontalJoins = plan.down * (plan.across - 1);
+        if (sheetColumn > 0) {
+          const radius = Math.min(6, viewHeight / 2, viewWidth, plan.columnBands[sheetColumn - 1].extent);
+          joinMarker(joinLetter(sheetRow * (plan.across - 1) + sheetColumn - 1), "left", left, area.gridTop + viewHeight / 2, radius);
+        }
+        if (sheetColumn < plan.across - 1) {
+          const radius = Math.min(6, viewHeight / 2, viewWidth, plan.columnBands[sheetColumn + 1].extent);
+          joinMarker(joinLetter(sheetRow * (plan.across - 1) + sheetColumn), "right", left + viewWidth, area.gridTop + viewHeight / 2, radius);
+        }
+        if (sheetRow > 0) {
+          const radius = Math.min(6, viewWidth / 2, viewHeight, plan.rowBands[sheetRow - 1].extent);
+          joinMarker(joinLetter(horizontalJoins + (sheetRow - 1) * plan.across + sheetColumn), "top", left + viewWidth / 2, area.gridTop, radius);
+        }
+        if (sheetRow < plan.down - 1) {
+          const radius = Math.min(6, viewWidth / 2, viewHeight, plan.rowBands[sheetRow + 1].extent);
+          joinMarker(joinLetter(horizontalJoins + sheetRow * plan.across + sheetColumn), "bottom", left + viewWidth / 2, area.gridTop + viewHeight, radius);
         }
         doc.restoreGraphicsState();
       }
