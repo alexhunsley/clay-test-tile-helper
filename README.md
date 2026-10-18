@@ -4,8 +4,11 @@ Open **index.html** directly in a browser. It is a self-contained HTML file with
 all JavaScript and the PDF font embedded: no server, installation, or internet
 connection is needed. It can also be hosted by any static web host.
 
-Enter a project title, glaze count, footprint width/height in millimetres, and
-glaze names. Glaze names start empty and each must contain non-whitespace text.
+Enter a project title, glaze count, footprint width/height in millimetres,
+horizontal/vertical page margins, and glaze names. Both margins default to
+12 mm and apply symmetrically to opposite edges. Zero and fractional margins
+are supported; the grid page count updates when margins change. Glaze names
+start empty and each must contain non-whitespace text.
 Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
@@ -23,15 +26,19 @@ For very small cells, labels may be shortened or omitted; the full glaze key is
 always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
-The usable grid area on the top-left sheet is 261 × 124 mm, after allowing for
-titles, labels, margins, and the scale check. Sheets without row labels gain
+At the default margins, the usable grid area on the top-left sheet is
+261 × 140 mm, after allowing for titles, labels and margins. Sheets without row labels gain
 12 mm of width; sheets without column labels gain 24 mm of height.
 Each dimension must be positive and fit
-inside that area. To prevent accidental huge documents, the MVP accepts up to
+inside the area available at the chosen margins. Horizontal margins are limited
+to 95.5 mm so the 100 mm scale fits, and vertical margins to 65 mm to leave
+space for headings and grid labels. Instructions wrap onto more pages as needed.
+To prevent accidental huge documents, the MVP accepts up to
 100 glazes and 400 grid sheets.
 
 Share filled form encodes the values into URL query parameters, including
-Unicode and punctuation. The copy button has a selectable-text fallback.
+Unicode, punctuation and page margins. Older links use the 12 mm defaults.
+The copy button has a selectable-text fallback.
 For links other people can open directly, host the same file at a web URL.
 Local `file://` links require a recipient's own file and a matching/adjusted path.
 

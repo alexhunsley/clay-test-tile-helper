@@ -2,7 +2,7 @@
   "use strict";
   const helper = globalThis.TileHelper;
   const form = document.getElementById("tile-form");
-  const fields = { title: document.getElementById("project-title"), count: document.getElementById("glaze-count"), width: document.getElementById("tile-width"), height: document.getElementById("tile-height") };
+  const fields = { title: document.getElementById("project-title"), count: document.getElementById("glaze-count"), width: document.getElementById("tile-width"), height: document.getElementById("tile-height"), marginH: document.getElementById("margin-horizontal"), marginV: document.getElementById("margin-vertical") };
   const glazeFields = document.getElementById("glaze-fields");
   const status = document.getElementById("form-status");
   const generate = document.getElementById("generate");
@@ -57,11 +57,11 @@
   function updateSummary() {
     const { data, errors } = helper.validate(readForm());
     const summary = document.getElementById("layout-summary");
-    if (errors.count || errors.width || errors.height) {
+    if (errors.count || errors.width || errors.height || errors.marginH || errors.marginV) {
       summary.textContent = "Enter a glaze count and footprint to plan your grid.";
       return;
     }
-    const plan = helper.layout(data.count, data.width, data.height);
+    const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV);
     summary.textContent = `${data.count * data.count} cells · ${data.width} × ${data.height} mm each · ${plan.pages} grid sheet${plan.pages === 1 ? "" : "s"}, plus instructions`;
   }
 

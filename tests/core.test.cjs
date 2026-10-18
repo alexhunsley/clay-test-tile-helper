@@ -13,13 +13,15 @@ for (const file of ['vendor/jspdf.umd.min.js', 'vendor/noto-sans.js', 'src/core.
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), browser, { filename: file });
 }
 const helper = browser.TileHelper;
-const valid = { title: 'Studio tests', count: '6', width: '50', height: '60', names: ['Ash', 'Blue', 'White', 'Green', 'Clear', 'Ochre'] };
+const valid = { title: 'Studio tests', count: '6', width: '50', height: '60', marginH: '12', marginV: '12', names: ['Ash', 'Blue', 'White', 'Green', 'Clear', 'Ochre'] };
 
 test('validation rejects missing fields, fractional counts, non-finite dimensions, oversized cells, and empty names', () => {
   const invalid = [
     [{ title: '' }, 'title'], [{ count: '2.5' }, 'count'], [{ count: '0' }, 'count'],
     [{ count: '101' }, 'count'], [{ width: '' }, 'width'], [{ height: '-2' }, 'height'],
-    [{ width: 'Infinity' }, 'width'], [{ width: '261.01' }, 'width'], [{ height: '124.01' }, 'height'],
+    [{ width: 'Infinity' }, 'width'], [{ width: '261.01' }, 'width'], [{ height: '140.01' }, 'height'],
+    [{ marginH: '' }, 'marginH'], [{ marginV: '-1' }, 'marginV'], [{ marginH: 'Infinity' }, 'marginH'],
+    [{ marginH: '96' }, 'marginH'], [{ marginV: '66' }, 'marginV'],
     [{ names: ['', 'Blue', 'White', 'Green', 'Clear'] }, 'name-0']
   ];
   for (const [changes, key] of invalid) assert.ok(helper.validate({ ...valid, ...changes }).errors[key], key);
@@ -61,12 +63,15 @@ test('query links round-trip Unicode, punctuation, names and fractional values',
   const raw = { ...valid, title: 'Émaux & clay? #1 + 2', width: '50.25', names: ['1', '青釉', 'A&B', '<script>alert(1)</script>', 'Crème + ash'] };
   const link = helper.shareUrl(raw, 'https://example.test/helper.html?old=1#old');
   const restored = helper.readUrl(link);
-  assert.equal(JSON.stringify(restored), JSON.stringify(raw));
+  assert.deepEqual(JSON.parse(JSON.stringify(restored)), raw);
   assert.equal(new URL(link).hash, '');
   assert.equal(new URL(link).searchParams.has('old'), false);
   assert.equal(helper.readUrl('file:///tmp/index.html'), null);
   assert.throws(() => helper.readUrl('https://example.test/?v=2'), /unsupported/);
   assert.equal(helper.readUrl(helper.shareUrl(raw, 'file:///tmp/index.html')).title, raw.title);
+  const oldLink = helper.readUrl('https://example.test/?v=1&title=Old&count=1&width=50&height=50&glaze=Ash');
+  assert.equal(oldLink.marginH, '12');
+  assert.equal(oldLink.marginV, '12');
 });
 
 test('real PDF has A4 pages, expected pagination, embedded font, and exact mm grid spacing', () => {
@@ -105,8 +110,8 @@ test('real PDF has A4 pages, expected pagination, embedded font, and exact mm gr
   const scales = textCalls.filter(call => call.args[0] === '100 mm scale check');
   assert.equal(scales.length, 1);
   assert.equal(scales[0].page, 1);
-  assert.equal(scales[0].args[2], 199);
-  assert.ok(drawCalls.some(({page, args: [x1, y1, x2, y2]}) => page === 1 && x1 === 12 && x2 === 112 && y1 === 193 && y2 === 193));
+  assert.equal(scales[0].args[2], 197);
+  assert.ok(drawCalls.some(({page, args: [x1, y1, x2, y2]}) => page === 1 && x1 === 12 && x2 === 112 && y1 === 191 && y2 === 191));
   assert.equal(textCalls.some(call => /^Page \d+ of \d+/.test(call.args[0])), false);
   assert.equal(textCalls.some(call => call.args[0] === 'A4 landscape · Print at 100% / Actual size'), false);
   const output = pdf.output();
@@ -124,4 +129,39 @@ test('long names wrap through additional key pages and still generate all grid s
   const data = helper.validate({ title: 'Long labels', count: 25, width: 20.5, height: 25.25, names }).data;
   const pdf = helper.createPdf(data, browser.jspdf.jsPDF);
   assert.ok(pdf.getNumberOfPages() > helper.layout(25, 20.5, 25.25).pages + 1);
+});
+
+test('custom margins reclaim space, preserve cell sizes, constrain PDF content and round-trip in links', () => {
+  assert.equal(helper.layout(5, 54.5, 62, 12, 12).pages, 6);
+  assert.equal(helper.layout(5, 54.5, 62, 5, 5).pages, 3);
+  const raw = { ...valid, marginH: '3.5', marginV: '4.25' };
+  assert.deepEqual(JSON.parse(JSON.stringify(helper.readUrl(helper.shareUrl(raw, 'file:///tmp/index.html')))), raw);
+  assert.ok(helper.validate({ ...valid, width: 270 }).errors.width);
+  assert.equal(helper.validate({ ...valid, width: 270, marginH: 5 }).errors.width, undefined);
+  for (const [marginH, marginV] of [[0, 0], [3.5, 4.25], [20, 20], [95.5, 65]]) {
+    const data = helper.validate({ ...valid, count: 2, width: 20, height: 25, marginH, marginV, names: ['Ash', 'Blue'] }).data;
+    const rectangles = [], lines = [], captions = [];
+    function TrackedPDF(options) {
+      const doc = new browser.jspdf.jsPDF(options);
+      for (const [method, list] of [['rect', rectangles], ['line', lines], ['text', captions]]) {
+        const original = doc[method].bind(doc);
+        doc[method] = (...args) => { list.push({ page: doc.getNumberOfPages(), args }); return original(...args); };
+      }
+      return doc;
+    }
+    const pdf = helper.createPdf(data, TrackedPDF);
+    assert.ok(pdf.getNumberOfPages() >= 2);
+    for (const { args: [x, y, w, h] } of rectangles) {
+      assert.ok(x >= marginH && y >= marginV);
+      assert.ok(x + w <= 297 - marginH + 1e-8);
+      assert.ok(y + h <= 210 - marginV + 1e-8);
+    }
+    assert.ok(lines.some(({page, args: [x1, y1, x2, y2]}) => page === 1 && x1 === marginH && x2 - x1 === 100 && y1 === y2));
+    assert.equal(captions.filter(call => call.args[0] === '100 mm scale check').length, 1);
+    assert.ok(captions.every(({args}) => args[2] >= marginV && args[2] <= 210 - marginV));
+    // The grid's two cells stay 20 mm wide and 25 mm high at every margin setting.
+    const firstRows = helper.layout(2, 20, 25, marginH, marginV).rowsPerPage;
+    assert.ok(rectangles.some(({args: [x, y, w, h]}) => x === marginH && y === marginV + 22 && w === 52 && h === 24 + firstRows * 25));
+    if (marginH === 95.5) fs.writeFileSync(path.join(root, 'test-output/large-margins.pdf'), Buffer.from(pdf.output('arraybuffer')));
+  }
 });
