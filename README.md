@@ -20,7 +20,7 @@ rectangles. Cells can cross sheet boundaries in either direction, including a
 single cell larger than one sheet. The initial footprint determines the sheets
 across/down. Swelling expands every cell to fill that combined paper area;
 only a maximum size limit can prevent it from filling an axis. The preview
-and each PDF sheet show the common expanded dimensions.
+shows the common expanded dimensions, which are also included in the instructions.
 Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
@@ -31,7 +31,7 @@ shrink to stay inside the cell; very small cells require very small type.
 
 With swelling off, cells retain their exact requested width and height in PDF
 coordinates. Page boundaries can cut through cells, labels and text. Trim the
-page margins and the sheet-position headers, then join the table portions to
+page margins, then join the table portions to
 restore the continuous grid. Every joining edge has a medium-grey semicircle
 with a white letter at its midpoint. Match identical letters on adjacent sheets;
 each join has its own code (A–Z, then AA, AB, and so on). The flat side sits
@@ -52,7 +52,8 @@ always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
 At the default margins, the usable grid area on the top-left sheet is
-261 × 154 mm, after allowing for the sheet heading, labels and margins. Sheets without row labels gain
+261 × 162 mm, after allowing for labels and margins. The table starts at the
+top margin with no sheet heading. Sheets without row labels gain
 12 mm of width; sheets without column labels gain 24 mm of height.
 Cell dimensions must be positive, and may exceed the size of one sheet.
 Horizontal margins are limited

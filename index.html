@@ -554,13 +554,13 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
 </script>
   <script>(function (root) {
   "use strict";
-  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 44, gridWidth: 261, gridHeight: 154, continuationWidth: 273, continuationHeight: 178 });
+  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 36, gridWidth: 261, gridHeight: 162, continuationWidth: 273, continuationHeight: 186 });
   const MAX_GLAZES = 100;
   const MAX_GRID_PAGES = 400;
 
   function geometry(marginH = PAGE.margin, marginV = PAGE.margin) {
     const contentWidth = PAGE.width - 2 * marginH;
-    const gridTop = marginV + 8;
+    const gridTop = marginV;
     const bottom = PAGE.height - marginV;
     return { marginH, marginV, contentWidth, gridTop, bottom, gridWidth: contentWidth - PAGE.labelWidth, gridHeight: bottom - gridTop - PAGE.labelHeight, continuationWidth: contentWidth, continuationHeight: bottom - gridTop };
   }
@@ -796,7 +796,7 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-      "Trim the page margins and sheet-position headers, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
+      "Trim the page margins, then match the letters in the grey semicircles to join the sheet edges into one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
     ];
     let y = area.marginV + 30;
     const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
@@ -836,7 +836,6 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
         const gridY = Math.max(area.gridTop, projectY(PAGE.labelHeight));
         const gridWidth = left + viewWidth - gridX;
         const gridHeight = area.gridTop + viewHeight - gridY;
-        fitted(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${Number(cellWidth.toFixed(3))} × ${Number(cellHeight.toFixed(3))} mm`, left, area.marginV, area.contentWidth, 8, 9);
         doc.saveGraphicsState();
         doc.rect(left, area.gridTop, viewWidth, viewHeight, null).clip().discardPath();
         watermark(gridX, gridY, gridWidth, gridHeight);

@@ -27,7 +27,7 @@ function render(raw){
   }
   const pdf=helper.createPdf(data,TrackedPDF);
   const plan=helper.layout(data.count,data.width,data.height,data.marginH,data.marginV,data);
-  const firstGridPage=calls.find(c=>c.method==='text' && String(c.args[0]).startsWith('Grid /')).page;
+  const firstGridPage=pdf.getNumberOfPages()-plan.pages+1;
   return {pdf,calls,plan,firstGridPage};
 }
 
@@ -43,7 +43,7 @@ test('continuous pagination covers every millimetre, includes partial cells and 
   for(const [count,width,height] of [[1,500,300],[5,50,60],[6,50,60],[13,47.4,31],[100,.1,.2]]){
     const plan=helper.layout(count,width,height);
     close(plan.tableWidth,12+count*width); close(plan.tableHeight,24+count*height);
-    for(const [slices,span,total] of [[plan.columnBands,273,plan.tableWidth],[plan.rowBands,178,plan.tableHeight]]){
+    for(const [slices,span,total] of [[plan.columnBands,273,plan.tableWidth],[plan.rowBands,186,plan.tableHeight]]){
       close(slices.reduce((sum,s)=>sum+s.extent,0),total);
       slices.forEach((s,i)=>{close(s.offset,i*span);assert.ok(s.extent>0 && s.extent<=span+1e-8);if(i)close(slices[i-1].offset+slices[i-1].extent,s.offset);});
     }
@@ -52,7 +52,7 @@ test('continuous pagination covers every millimetre, includes partial cells and 
   assert.equal(plan.across,2); assert.equal(plan.down,3);
   assert.equal(plan.columnBands[0].count,6); assert.equal(plan.columnBands[1].start,5);
   assert.equal(plan.rowBands[0].count,3); assert.equal(plan.rowBands[1].start,2);
-  assert.equal(helper.layout(3,87,154/3).pages,1);
+  assert.equal(helper.layout(3,87,162/3).pages,1);
   assert.equal(helper.layout(5,50,60).down,2);
 });
 
@@ -72,7 +72,7 @@ test('uniform swelling fills the combined sheet area and respects independent li
     }
   }
   const plan=helper.layout(6,50,60,12,12,{swell:true});
-  close(plan.cellWidth,89);close(plan.cellHeight,85);close(plan.tableWidth,546);close(plan.tableHeight,534);
+  close(plan.cellWidth,89);close(plan.cellHeight,89);close(plan.tableWidth,546);close(plan.tableHeight,558);
   for(const [changes,key] of [[{maxWidth:'49'},'maxWidth'],[{maxHeight:''},'maxHeight'],[{maxHeight:'-1'},'maxHeight']]){
     assert.ok(helper.validate({...valid,swell:true,...changes}).errors[key]);
     assert.equal(helper.validate({...valid,swell:false,...changes}).errors[key],undefined);
@@ -101,11 +101,11 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
     const lines=calls.filter(c=>c.method==='line' && c.page>=firstGridPage);
     for(const {page,args:[x1,y1,x2,y2]} of lines){
       const i=page-firstGridPage,cb=plan.columnBands[i%plan.across],rb=plan.rowBands[Math.floor(i/plan.across)];
-      assert.ok(x1>=12-1e-7 && x2<=285+1e-7 && y1>=20-1e-7 && y2<=198+1e-7);
+      assert.ok(x1>=12-1e-7 && x2<=285+1e-7 && y1>=12-1e-7 && y2<=198+1e-7);
       if(x1===x2){const global=x1-12+cb.offset;if(Math.abs(global)>1e-8)close((global-12)/plan.cellWidth,Math.round((global-12)/plan.cellWidth));}
-      else {const global=y1-20+rb.offset;if(Math.abs(global)>1e-8)close((global-24)/plan.cellHeight,Math.round((global-24)/plan.cellHeight));}
+      else {const global=y1-12+rb.offset;if(Math.abs(global)>1e-8)close((global-24)/plan.cellHeight,Math.round((global-24)/plan.cellHeight));}
     }
-    const seamY=20+24+plan.cellHeight;
+    const seamY=12+24+plan.cellHeight;
     assert.ok(lines.some(c=>c.page===firstGridPage && c.args[0]===12 && c.args[2]===285 && Math.abs(c.args[1]-seamY)<1e-8));
     assert.ok(lines.some(c=>c.page===firstGridPage+1 && c.args[0]===12 && Math.abs(c.args[1]-seamY)<1e-8));
     for(let page=firstGridPage;page<=pdf.getNumberOfPages();page++){
@@ -118,6 +118,10 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
     assert.equal(scales.length,1);assert.equal(scales[0].page,1);
     assert.equal(calls.some(c=>c.method==='text' && /^Page \d+ of \d+/.test(c.args[0])),false);
     assert.equal(calls.some(c=>c.method==='text' && c.args[0]==='A4 landscape · Print at 100% / Actual size'),false);
+    assert.equal(calls.some(c=>c.method==='text' && String(c.args[0]).startsWith('Grid /')),false);
+    if(swell)for(let page=firstGridPage;page<=pdf.getNumberOfPages();page++){
+      assert.ok(calls.some(c=>c.page===page && c.method==='rect' && c.args[0]===12 && c.args[1]===12 && Math.abs(c.args[3]-186)<1e-8 && c.args[4]===null));
+    }
     fs.writeFileSync(path.join(root,`test-output/${swell?'swelled':'sample'}.pdf`),Buffer.from(pdf.output('arraybuffer')));
   }
 });
@@ -133,7 +137,7 @@ test('cell footers preserve column.row pairs and global positions across paper c
       assert.equal(normalized,`${column}.${row} ${valid.names[col]} / ${valid.names[r]}`);
       const i=page-firstGridPage,cb=plan.columnBands[i%plan.across],rb=plan.rowBands[Math.floor(i/plan.across)];
       close(x-12+cb.offset,12+(col+.5)*plan.cellWidth);
-      const globalY=y-20+rb.offset,bottom=24+(r+1)*plan.cellHeight;
+      const globalY=y-12+rb.offset,bottom=24+(r+1)*plan.cellHeight;
       assert.ok(globalY<bottom && globalY>bottom-12);assert.equal(options.align,'center');
     }
     assert.equal(seen.size,36);assert.ok(footers.some(c=>c.args[0]==='2.3 Blue / White'));
@@ -142,7 +146,7 @@ test('cell footers preserve column.row pairs and global positions across paper c
 
 test('one cell can fill four sheets without artificial borders at the internal paper edges',()=>{
   const {pdf,calls,plan,firstGridPage}=render({...valid,count:1,width:500,height:300,names:['Large tile'],swell:true});
-  assert.equal(plan.across,2);assert.equal(plan.down,2);close(plan.cellWidth,534);close(plan.cellHeight,332);
+  assert.equal(plan.across,2);assert.equal(plan.down,2);close(plan.cellWidth,534);close(plan.cellHeight,348);
   assert.equal(pdf.getNumberOfPages()-firstGridPage+1,4);
   assert.equal(calls.some(c=>c.page===firstGridPage && c.method==='line' && c.args[0]===285 && c.args[2]===285),false);
   assert.equal(calls.some(c=>c.page===firstGridPage && c.method==='line' && c.args[1]===198 && c.args[3]===198),false);
@@ -180,10 +184,10 @@ test('join markers pair unique white letters on opposite midpoints of every inte
       const [x,y,radius,style]=circle.args;
       assert.equal(style,'F');assert.ok(radius>0 && radius<=6);
       let edge;
-      if(x===12){edge='left';assert.ok(col>0);close(y,20+height/2);}
-      else if(Math.abs(x-(12+width))<1e-8){edge='right';assert.ok(col<plan.across-1);close(y,20+height/2);}
-      else if(y===20){edge='top';assert.ok(row>0);close(x,12+width/2);}
-      else {edge='bottom';assert.ok(row<plan.down-1);close(y,20+height);close(x,12+width/2);}
+      if(x===12){edge='left';assert.ok(col>0);close(y,12+height/2);}
+      else if(Math.abs(x-(12+width))<1e-8){edge='right';assert.ok(col<plan.across-1);close(y,12+height/2);}
+      else if(y===12){edge='top';assert.ok(row>0);close(x,12+width/2);}
+      else {edge='bottom';assert.ok(row<plan.down-1);close(y,12+height);close(x,12+width/2);}
       const code=letter.args[0];
       if(!pairs.has(code))pairs.set(code,[]);
       pairs.get(code).push({row,col,edge,radius});
