@@ -3,6 +3,9 @@
   const helper = globalThis.TileHelper;
   const form = document.getElementById("tile-form");
   const fields = { title: document.getElementById("project-title"), count: document.getElementById("glaze-count"), width: document.getElementById("tile-width"), height: document.getElementById("tile-height"), marginH: document.getElementById("margin-horizontal"), marginV: document.getElementById("margin-vertical") };
+  fields.swell = document.getElementById("swell-cells");
+  fields.maxWidth = document.getElementById("max-cell-width");
+  fields.maxHeight = document.getElementById("max-cell-height");
   const glazeFields = document.getElementById("glaze-fields");
   const status = document.getElementById("form-status");
   const generate = document.getElementById("generate");
@@ -11,7 +14,7 @@
   let submitted = false;
 
   function readForm() {
-    return { ...Object.fromEntries(Object.entries(fields).map(([key, input]) => [key, input.validity.badInput ? "" : input.value])), names: Array.from(glazeFields.querySelectorAll("input"), (input) => input.value) };
+    return { ...Object.fromEntries(Object.entries(fields).map(([key, input]) => [key, input.type === "checkbox" ? input.checked : input.validity.badInput ? "" : input.value])), names: Array.from(glazeFields.querySelectorAll("input"), (input) => input.value) };
   }
 
   function syncNames() {
@@ -57,12 +60,18 @@
   function updateSummary() {
     const { data, errors } = helper.validate(readForm());
     const summary = document.getElementById("layout-summary");
-    if (errors.count || errors.width || errors.height || errors.marginH || errors.marginV) {
+    if (errors.count || errors.width || errors.height || errors.marginH || errors.marginV || errors.maxWidth || errors.maxHeight) {
       summary.textContent = "Enter a glaze count and footprint to plan your grid.";
       return;
     }
-    const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV);
-    summary.textContent = `${data.count * data.count} cells · ${data.width} × ${data.height} mm each · ${plan.pages} grid sheet${plan.pages === 1 ? "" : "s"}, plus instructions`;
+    const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
+    const range = bands => {
+      const values = bands.map(band => band.cellSize);
+      const min = Number(Math.min(...values).toFixed(3));
+      const max = Number(Math.max(...values).toFixed(3));
+      return min === max ? String(min) : `${min}–${max}`;
+    };
+    summary.textContent = `${data.count * data.count} cells · ${range(plan.columnBands)} × ${range(plan.rowBands)} mm${data.swell ? " (expanded)" : " each"} · ${plan.across} × ${plan.down} = ${plan.pages} grid sheet${plan.pages === 1 ? "" : "s"}, plus instructions`;
   }
 
   function validate() {
@@ -78,6 +87,7 @@
 
   form.addEventListener("input", (event) => {
     if (event.target === fields.count) syncNames();
+    fields.maxWidth.disabled = fields.maxHeight.disabled = !fields.swell.checked;
     updateSummary();
     if (submitted) showErrors(helper.validate(readForm()).errors);
     status.textContent = "";
@@ -129,7 +139,10 @@
   try {
     const restored = helper.readUrl(location.href);
     if (restored) {
-      for (const key of Object.keys(fields)) fields[key].value = restored[key];
+      for (const key of Object.keys(fields)) {
+        if (fields[key].type === "checkbox") fields[key].checked = restored[key];
+        else fields[key].value = restored[key];
+      }
       nameCache = restored.names;
     }
   } catch (error) {
@@ -137,5 +150,6 @@
     status.textContent = error.message;
   }
   syncNames();
+  fields.maxWidth.disabled = fields.maxHeight.disabled = !fields.swell.checked;
   updateSummary();
 })();

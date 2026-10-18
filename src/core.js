@@ -11,24 +11,26 @@
     return { marginH, marginV, contentWidth, gridTop, bottom, gridWidth: contentWidth - PAGE.labelWidth, gridHeight: bottom - gridTop - PAGE.labelHeight, continuationWidth: contentWidth, continuationHeight: bottom - gridTop };
   }
 
-  function layout(count, width, height, marginH = PAGE.margin, marginV = PAGE.margin) {
+  function layout(count, width, height, marginH = PAGE.margin, marginV = PAGE.margin, options = {}) {
     const area = geometry(marginH, marginV);
     // Tolerance covers floating-point arithmetic at exact sheet boundaries only.
     const columnsPerPage = Math.min(count, Math.floor((area.gridWidth + 1e-9) / width));
     const rowsPerPage = Math.min(count, Math.floor((area.gridHeight + 1e-9) / height));
     if (columnsPerPage < 1 || rowsPerPage < 1) return null;
-    function bands(firstCapacity, continuationSpace, cellSize) {
+    function bands(firstCapacity, firstSpace, continuationSpace, cellSize, maxSize) {
       const result = [];
       const capacity = Math.floor((continuationSpace + 1e-9) / cellSize);
       for (let start = 0; start < count;) {
         const size = Math.min(count - start, start === 0 ? firstCapacity : capacity);
-        result.push({ start, count: size });
+        const space = start === 0 ? firstSpace : continuationSpace;
+        const expanded = options.swell ? Math.max(cellSize, Math.min(space / size, maxSize > 0 ? maxSize : Infinity)) : cellSize;
+        result.push({ start, count: size, cellSize: expanded });
         start += size;
       }
       return result;
     }
-    const columnBands = bands(columnsPerPage, area.continuationWidth, width);
-    const rowBands = bands(rowsPerPage, area.continuationHeight, height);
+    const columnBands = bands(columnsPerPage, area.gridWidth, area.continuationWidth, width, options.maxWidth);
+    const rowBands = bands(rowsPerPage, area.gridHeight, area.continuationHeight, height, options.maxHeight);
     const across = columnBands.length;
     const down = rowBands.length;
     return { columnsPerPage, rowsPerPage, columnBands, rowBands, across, down, pages: across * down, area };
@@ -42,6 +44,15 @@
     const height = Number(raw.height);
     const marginH = Number(raw.marginH ?? PAGE.margin);
     const marginV = Number(raw.marginV ?? PAGE.margin);
+    const swell = raw.swell === true;
+    const maxWidth = Number(raw.maxWidth ?? 0);
+    const maxHeight = Number(raw.maxHeight ?? 0);
+    if (swell) {
+      for (const [key, value, minimum] of [["maxWidth", maxWidth, width], ["maxHeight", maxHeight, height]]) {
+        if (String(raw[key] ?? 0).trim() === "" || !Number.isFinite(value) || value < 0) errors[key] = "Enter 0 for no limit, or a positive size in mm.";
+        else if (value > 0 && value < minimum) errors[key] = "The maximum must be at least the footprint size, or 0 for no limit.";
+      }
+    }
     for (const [key, value, max] of [["marginH", marginH, 95.5], ["marginV", marginV, 65]]) {
       if (String(raw[key] ?? PAGE.margin).trim() === "" || !Number.isFinite(value) || value < 0 || value > max) {
         errors[key] = `Enter a margin from 0 to ${max} mm, leaving room for the instructions, scale and grid labels.`;
@@ -64,7 +75,7 @@
       const plan = layout(count, width, height, marginH, marginV);
       if (plan.pages > MAX_GRID_PAGES) errors.count = `This needs ${plan.pages.toLocaleString()} grid sheets. Reduce the glaze count or footprint to use at most ${MAX_GRID_PAGES}.`;
     }
-    return { errors, data: { title, count, width, height, marginH, marginV, names } };
+    return { errors, data: { title, count, width, height, marginH, marginV, swell, maxWidth, maxHeight, names } };
   }
 
   function shareUrl(raw, href) {
@@ -73,6 +84,8 @@
     url.hash = "";
     url.searchParams.set("v", "1");
     for (const key of ["title", "count", "width", "height", "marginH", "marginV"]) url.searchParams.set(key, String(raw[key] ?? PAGE.margin));
+    url.searchParams.set("swell", raw.swell === true ? "1" : "0");
+    for (const key of ["maxWidth", "maxHeight"]) url.searchParams.set(key, String(raw[key] ?? 0));
     for (const name of raw.names) url.searchParams.append("glaze", name);
     return url.href;
   }
@@ -81,7 +94,7 @@
     const params = new URL(href).searchParams;
     if (!params.has("v")) return null;
     if (params.get("v") !== "1") throw new Error("This link uses an unsupported form version.");
-    return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), names: params.getAll("glaze") };
+    return { title: params.get("title") ?? "", count: params.get("count") ?? "", width: params.get("width") ?? "", height: params.get("height") ?? "", marginH: params.get("marginH") ?? String(PAGE.margin), marginV: params.get("marginV") ?? String(PAGE.margin), swell: params.get("swell") === "1", maxWidth: params.get("maxWidth") ?? "0", maxHeight: params.get("maxHeight") ?? "0", names: params.getAll("glaze") };
   }
 
   function createPdf(data, JsPDF) {
@@ -92,7 +105,7 @@
       doc.setFont("NotoSans", "normal");
     }
     doc.setProperties({ title: data.title, subject: "Ceramic test tile glaze combinations", creator: "Ceramic Test Tile Helper" });
-    const plan = layout(data.count, data.width, data.height, data.marginH, data.marginV);
+    const plan = layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
     const area = plan.area;
     const left = area.marginH;
     const bodyWidth = area.contentWidth - 6;
@@ -172,7 +185,7 @@
     text("100 mm scale check", left, area.bottom - 1, 8);
     const instructions = [
       `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-      `Each grid cell is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).`,
+      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` Cells expand to fill each sheet, up to ${data.maxWidth || "unlimited"} mm wide and ${data.maxHeight || "unlimited"} mm high. Cell sizes can vary between sheets.` : ""}`,
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
@@ -205,17 +218,17 @@
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
         doc.addPage();
-        const { start: rowStart, count: rows } = plan.rowBands[sheetRow];
-        const { start: columnStart, count: columns } = plan.columnBands[sheetColumn];
+        const { start: rowStart, count: rows, cellSize: cellHeight } = plan.rowBands[sheetRow];
+        const { start: columnStart, count: columns, cellSize: cellWidth } = plan.columnBands[sheetColumn];
         const showRowLabels = sheetColumn === 0;
         const showColumnLabels = sheetRow === 0;
         const labelWidth = showRowLabels ? PAGE.labelWidth : 0;
         const labelHeight = showColumnLabels ? PAGE.labelHeight : 0;
         const gridX = left + labelWidth;
         const gridY = area.gridTop + labelHeight;
-        const gridWidth = columns * data.width;
-        const gridHeight = rows * data.height;
-        fitted(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${data.width} × ${data.height} mm`, left, area.marginV, area.contentWidth, 8, 9);
+        const gridWidth = columns * cellWidth;
+        const gridHeight = rows * cellHeight;
+        fitted(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${Number(cellWidth.toFixed(3))} × ${Number(cellHeight.toFixed(3))} mm`, left, area.marginV, area.contentWidth, 8, 9);
         watermark(gridX, gridY, gridWidth, gridHeight);
 
         doc.setFillColor(...labelFill);
@@ -223,21 +236,21 @@
         if (showRowLabels) doc.rect(left, gridY, labelWidth, gridHeight, "F");
         for (let col = 0; showColumnLabels && col < columns; col++) {
           const index = columnStart + col;
-          fitted(`#${index + 1}  ${data.names[index]}`, gridX + col * data.width, area.gridTop, data.width, labelHeight);
+          fitted(`#${index + 1}  ${data.names[index]}`, gridX + col * cellWidth, area.gridTop, cellWidth, labelHeight);
         }
         for (let row = 0; showRowLabels && row < rows; row++) {
           const index = rowStart + row;
-          fitted(`#${index + 1}  ${data.names[index]}`, left, gridY + row * data.height, labelWidth, data.height, 10, true);
+          fitted(`#${index + 1}  ${data.names[index]}`, left, gridY + row * cellHeight, labelWidth, cellHeight, 10, true);
         }
         doc.setDrawColor(115, 124, 112);
         doc.setLineWidth(.2);
         doc.rect(left, area.gridTop, labelWidth + gridWidth, labelHeight + gridHeight);
         for (let col = 0; col <= columns; col++) {
-          const x = gridX + col * data.width;
+          const x = gridX + col * cellWidth;
           doc.line(x, area.gridTop, x, gridY + gridHeight);
         }
         for (let row = 0; row <= rows; row++) {
-          const lineY = gridY + row * data.height;
+          const lineY = gridY + row * cellHeight;
           doc.line(left, lineY, gridX + gridWidth, lineY);
         }
       }
