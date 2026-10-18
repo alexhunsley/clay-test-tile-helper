@@ -13,42 +13,30 @@
 
   function layout(count, width, height, marginH = PAGE.margin, marginV = PAGE.margin, options = {}) {
     const area = geometry(marginH, marginV);
-    // Tolerance covers floating-point arithmetic at exact sheet boundaries only.
-    const columnsPerPage = Math.min(count, Math.floor((area.gridWidth + 1e-9) / width));
-    const rowsPerPage = Math.min(count, Math.floor((area.gridHeight + 1e-9) / height));
-    if (columnsPerPage < 1 || rowsPerPage < 1) return null;
-    function bands(firstSpace, continuationSpace, cellSize, maxSize) {
-      function partition(size) {
-        const result = [];
-        for (let start = 0; start < count;) {
-          const space = start === 0 ? firstSpace : continuationSpace;
-          const capacity = Math.floor((space + 1e-9) / size);
-          const number = Math.min(count - start, capacity);
-          result.push({ start, count: number, cellSize: size });
-          start += number;
-        }
-        return result;
-      }
-      const original = partition(cellSize);
-      if (!options.swell) return original;
-      const sheets = original.length;
-      let low = cellSize;
-      let high = Math.min(firstSpace, (firstSpace + (sheets - 1) * continuationSpace) / count, maxSize > 0 ? maxSize : Infinity);
-      // Find the largest common cell size that fits every cell on the original
-      // number of sheets. Redistribute whole cells between sheets as needed.
-      for (let i = 0; i < 60; i++) {
-        const candidate = (low + high) / 2;
-        const capacity = Math.floor((firstSpace + 1e-9) / candidate) + (sheets - 1) * Math.floor((continuationSpace + 1e-9) / candidate);
-        if (capacity >= count) low = candidate;
-        else high = candidate;
-      }
-      return partition(Math.max(cellSize, low));
+    // The labelled table is one continuous surface. Sheets are rectangular
+    // windows onto it, and may cut through cells, text and grid lines.
+    const across = Math.max(1, Math.ceil((PAGE.labelWidth + count * width - 1e-9) / area.contentWidth));
+    const down = Math.max(1, Math.ceil((PAGE.labelHeight + count * height - 1e-9) / area.continuationHeight));
+    const expand = (minimum, available, limit) => options.swell
+      ? Math.max(minimum, Math.min(available / count, limit > 0 ? limit : Infinity)) : minimum;
+    const cellWidth = expand(width, across * area.contentWidth - PAGE.labelWidth, options.maxWidth);
+    const cellHeight = expand(height, down * area.continuationHeight - PAGE.labelHeight, options.maxHeight);
+    const tableWidth = PAGE.labelWidth + count * cellWidth;
+    const tableHeight = PAGE.labelHeight + count * cellHeight;
+    const pages = across * down;
+    function slices(sheets, span, total, labelSize, cellSize) {
+      if (!Number.isFinite(pages) || pages > MAX_GRID_PAGES) return [];
+      return Array.from({ length: sheets }, (_, i) => {
+        const offset = i * span;
+        const extent = Math.min(span, Math.max(0, total - offset));
+        const start = Math.max(0, Math.min(count, Math.floor((offset - labelSize) / cellSize)));
+        const end = Math.max(start, Math.min(count, Math.ceil((offset + extent - labelSize - 1e-9) / cellSize)));
+        return { offset, extent, start, count: end - start, cellSize };
+      });
     }
-    const columnBands = bands(area.gridWidth, area.continuationWidth, width, options.maxWidth);
-    const rowBands = bands(area.gridHeight, area.continuationHeight, height, options.maxHeight);
-    const across = columnBands.length;
-    const down = rowBands.length;
-    return { columnsPerPage, rowsPerPage, columnBands, rowBands, across, down, pages: across * down, area };
+    const columnBands = slices(across, area.contentWidth, tableWidth, PAGE.labelWidth, cellWidth);
+    const rowBands = slices(down, area.continuationHeight, tableHeight, PAGE.labelHeight, cellHeight);
+    return { columnBands, rowBands, across, down, pages, cellWidth, cellHeight, tableWidth, tableHeight, area };
   }
 
   function validate(raw) {
@@ -73,13 +61,11 @@
         errors[key] = `Enter a margin from 0 to ${max} mm, leaving room for the instructions, scale and grid labels.`;
       }
     }
-    const area = geometry(errors.marginH ? PAGE.margin : marginH, errors.marginV ? PAGE.margin : marginV);
     if (!title) errors.title = "Enter a project title.";
     else if (title.length > 160) errors.title = "Use 160 characters or fewer.";
     if (!Number.isInteger(count) || count < 1 || count > MAX_GLAZES) errors.count = `Enter a whole number from 1 to ${MAX_GLAZES}.`;
-    for (const [key, value, max] of [["width", width, area.gridWidth], ["height", height, area.gridHeight]]) {
+    for (const [key, value] of [["width", width], ["height", height]]) {
       if (!Number.isFinite(value) || value <= 0) errors[key] = "Enter a size greater than 0 mm.";
-      else if (value > max) errors[key] = `Use ${Number(max.toFixed(6))} mm or less so a whole cell fits on A4 with labels at these margins.`;
     }
     const names = Array.from({ length: errors.count ? 0 : count }, (_, i) => String(raw.names?.[i] ?? "").trim());
     names.forEach((name, i) => {
@@ -170,7 +156,7 @@
       fitted(subtitle, left, area.marginV + 14, area.contentWidth, 8, 9);
     }
 
-    function cellFooter(value, x, y, width, height) {
+    function cellFooter(value, x, y, width, height, viewport) {
       const padding = Math.min(2, width * .05, height * .05);
       const innerWidth = Math.max(.000001, width - 2 * padding);
       const footerHeight = Math.min(12, height * .25);
@@ -189,6 +175,11 @@
       }
       const lineHeight = size * pointToMm * 1.2;
       const baseline = y + height - padding - size * pointToMm * .25 - (lines.length - 1) * lineHeight;
+      doc.setFontSize(size);
+      const textWidth = Math.max(...lines.map(line => doc.getTextWidth(line)));
+      if (viewport && (baseline - size * pointToMm >= viewport.bottom ||
+        baseline + (lines.length - 1) * lineHeight + size * pointToMm * .25 <= viewport.top ||
+        x + width / 2 + textWidth / 2 <= viewport.left || x + width / 2 - textWidth / 2 >= viewport.right)) return;
       text(lines.join("\n"), x + width / 2, baseline, size, { align: "center", lineHeightFactor: 1.2 });
     }
 
@@ -207,7 +198,7 @@
       const startX = x + width / 2 - length * cos / 2 + baselineOffset * sin;
       const startY = y + height / 2 + length * sin / 2 + baselineOffset * cos;
       doc.saveGraphicsState();
-      doc.rect(x, y, width, height).clip().discardPath();
+      doc.rect(x, y, width, height, null).clip().discardPath();
       doc.setFontSize(size);
       doc.setTextColor(230, 233, 228);
       doc.text(data.title, startX, startY, { angle: angle * 180 / Math.PI });
@@ -222,11 +213,11 @@
     text("100 mm scale check", left, area.bottom - 1, 8);
     const instructions = [
       `Prepare ${data.count * data.count} test tiles: ${data.count} row glazes × ${data.count} column glazes.`,
-      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.columnBands[0].cellSize.toFixed(3))} × ${Number(plan.rowBands[0].cellSize.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
+      `${data.swell ? "Minimum cell footprint" : "Each grid cell"} is ${data.width} × ${data.height} mm. The grid spans ${plan.pages} A4 landscape sheet${plan.pages === 1 ? "" : "s"} (${plan.across} across × ${plan.down} down).${data.swell ? ` All cells expand uniformly to ${Number(plan.cellWidth.toFixed(3))} × ${Number(plan.cellHeight.toFixed(3))} mm, with ${data.maxWidth > 0 ? `a ${data.maxWidth} mm width limit` : "no width limit"} and ${data.maxHeight > 0 ? `a ${data.maxHeight} mm height limit` : "no height limit"}.` : ""}`,
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale in the footer of the first page before using the grid.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-      "Arrange sheets by their sheet row and column. Row labels run vertically along the far left edge; column labels appear only along the top edge of the full grid. Long labels may be shortened; use the full glaze key below."
+      "Trim the page margins and sheet-position headers, then join sheets by their sheet row and column to assemble one continuous table. Cells and labels can span sheets. Row labels run vertically along the far left edge; column labels appear only along the top edge."
     ];
     let y = area.marginV + 30;
     const bodyBottom = () => area.bottom - (doc.getNumberOfPages() === 1 ? 15 : 0);
@@ -255,49 +246,57 @@
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
         doc.addPage();
-        const { start: rowStart, count: rows, cellSize: cellHeight } = plan.rowBands[sheetRow];
-        const { start: columnStart, count: columns, cellSize: cellWidth } = plan.columnBands[sheetColumn];
-        const showRowLabels = sheetColumn === 0;
-        const showColumnLabels = sheetRow === 0;
-        const labelWidth = showRowLabels ? PAGE.labelWidth : 0;
-        const labelHeight = showColumnLabels ? PAGE.labelHeight : 0;
-        const gridX = left + labelWidth;
-        const gridY = area.gridTop + labelHeight;
-        const gridWidth = columns * cellWidth;
-        const gridHeight = rows * cellHeight;
+        const rowSlice = plan.rowBands[sheetRow];
+        const columnSlice = plan.columnBands[sheetColumn];
+        const { cellWidth, cellHeight } = plan;
+        const viewX = columnSlice.offset, viewY = rowSlice.offset;
+        const viewWidth = columnSlice.extent, viewHeight = rowSlice.extent;
+        const projectX = x => left + x - viewX;
+        const projectY = y => area.gridTop + y - viewY;
+        const gridX = Math.max(left, projectX(PAGE.labelWidth));
+        const gridY = Math.max(area.gridTop, projectY(PAGE.labelHeight));
+        const gridWidth = left + viewWidth - gridX;
+        const gridHeight = area.gridTop + viewHeight - gridY;
         fitted(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${Number(cellWidth.toFixed(3))} × ${Number(cellHeight.toFixed(3))} mm`, left, area.marginV, area.contentWidth, 8, 9);
+        doc.saveGraphicsState();
+        doc.rect(left, area.gridTop, viewWidth, viewHeight, null).clip().discardPath();
         watermark(gridX, gridY, gridWidth, gridHeight);
 
         doc.setFillColor(...labelFill);
-        if (showColumnLabels) doc.rect(left, area.gridTop, labelWidth + gridWidth, labelHeight, "F");
-        if (showRowLabels) doc.rect(left, gridY, labelWidth, gridHeight, "F");
-        for (let col = 0; showColumnLabels && col < columns; col++) {
-          const index = columnStart + col;
-          fitted(`#${index + 1}  ${data.names[index]}`, gridX + col * cellWidth, area.gridTop, cellWidth, labelHeight);
+        if (sheetRow === 0) doc.rect(left, area.gridTop, viewWidth, PAGE.labelHeight, "F");
+        if (sheetColumn === 0) doc.rect(left, gridY, PAGE.labelWidth, gridHeight, "F");
+        for (let col = columnSlice.start; sheetRow === 0 && col < columnSlice.start + columnSlice.count; col++) {
+          fitted(`#${col + 1}  ${data.names[col]}`, projectX(PAGE.labelWidth + col * cellWidth), projectY(0), cellWidth, PAGE.labelHeight);
         }
-        for (let row = 0; showRowLabels && row < rows; row++) {
-          const index = rowStart + row;
-          fitted(`#${index + 1}  ${data.names[index]}`, left, gridY + row * cellHeight, labelWidth, cellHeight, 10, true);
+        for (let row = rowSlice.start; sheetColumn === 0 && row < rowSlice.start + rowSlice.count; row++) {
+          fitted(`#${row + 1}  ${data.names[row]}`, projectX(0), projectY(PAGE.labelHeight + row * cellHeight), PAGE.labelWidth, cellHeight, 10, true);
         }
         doc.setDrawColor(115, 124, 112);
         doc.setLineWidth(.2);
-        doc.rect(left, area.gridTop, labelWidth + gridWidth, labelHeight + gridHeight);
-        for (let col = 0; col <= columns; col++) {
-          const x = gridX + col * cellWidth;
-          doc.line(x, area.gridTop, x, gridY + gridHeight);
-        }
-        for (let row = 0; row <= rows; row++) {
-          const lineY = gridY + row * cellHeight;
-          doc.line(left, lineY, gridX + gridWidth, lineY);
-        }
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < columns; col++) {
-            const columnIndex = columnStart + col;
-            const rowIndex = rowStart + row;
-            const pair = `${columnIndex + 1}.${rowIndex + 1} ${data.names[columnIndex]} / ${data.names[rowIndex]}`;
-            cellFooter(pair, gridX + col * cellWidth, gridY + row * cellHeight, cellWidth, cellHeight);
+        // Only genuine table boundaries are stroked. An internal paper edge
+        // cuts through the continuous drawing without inventing a cell border.
+        if (sheetColumn === 0) doc.line(left, area.gridTop, left, area.gridTop + viewHeight);
+        if (sheetRow === 0) doc.line(left, area.gridTop, left + viewWidth, area.gridTop);
+        for (let col = 0; col <= data.count; col++) {
+          const x = PAGE.labelWidth + col * cellWidth;
+          if (x >= viewX - 1e-9 && x <= viewX + viewWidth + 1e-9) {
+            doc.line(projectX(x), area.gridTop, projectX(x), area.gridTop + viewHeight);
           }
         }
+        for (let row = 0; row <= data.count; row++) {
+          const y = PAGE.labelHeight + row * cellHeight;
+          if (y >= viewY - 1e-9 && y <= viewY + viewHeight + 1e-9) {
+            doc.line(left, projectY(y), left + viewWidth, projectY(y));
+          }
+        }
+        const viewport = { left, top: area.gridTop, right: left + viewWidth, bottom: area.gridTop + viewHeight };
+        for (let row = rowSlice.start; row < rowSlice.start + rowSlice.count; row++) {
+          for (let col = columnSlice.start; col < columnSlice.start + columnSlice.count; col++) {
+            const pair = `${col + 1}.${row + 1} ${data.names[col]} / ${data.names[row]}`;
+            cellFooter(pair, projectX(PAGE.labelWidth + col * cellWidth), projectY(PAGE.labelHeight + row * cellHeight), cellWidth, cellHeight, viewport);
+          }
+        }
+        doc.restoreGraphicsState();
       }
     }
     return doc;

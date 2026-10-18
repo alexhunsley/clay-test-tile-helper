@@ -44,7 +44,7 @@ const { pathToFileURL } = require('node:url');
     await page.locator('#glaze-count').fill('5');
     assert.equal(await page.locator('#glaze-4').inputValue(), 'Keep this name');
 
-    await page.locator('#tile-width').fill('262');
+    await page.locator('#tile-width').fill('0');
     await page.locator('#tile-height').fill('0');
     await page.locator('#glaze-1').fill('');
     await page.locator('#generate').click();
@@ -119,6 +119,14 @@ const { pathToFileURL } = require('node:url');
     assert.equal(await page.locator('#max-cell-width').isDisabled(), true);
     assert.equal(await page.locator('#margin-horizontal').inputValue(), '12');
     assert.equal(await page.locator('#margin-vertical').inputValue(), '12');
+    await page.goto(`${href}?v=1&title=Spanning%20cell&count=1&width=500&height=300&swell=1&glaze=Ash`);
+    assert.match(await page.locator('#layout-summary').textContent(), /534 × 332 mm/);
+    assert.match(await page.locator('#layout-summary').textContent(), /2 × 2 = 4 grid sheets/);
+    const spanningDownload = page.waitForEvent('download');
+    await page.locator('#generate').click();
+    await (await spanningDownload).saveAs(path.join(output, 'browser-spanning-cell.pdf'));
+    await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
+    assert.match(await page.locator('#form-status').textContent(), /5 pages/);
     assert.deepEqual(errors, []);
     console.log('Browser checks passed: offline file://, dynamic fields, inline errors, name retention, share restoration, clipboard fallback, PDF download, and mobile layout.');
   } finally {

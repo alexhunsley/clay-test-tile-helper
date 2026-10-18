@@ -65,13 +65,7 @@
       return;
     }
     const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
-    const range = bands => {
-      const values = bands.map(band => band.cellSize);
-      const min = Number(Math.min(...values).toFixed(3));
-      const max = Number(Math.max(...values).toFixed(3));
-      return min === max ? String(min) : `${min}–${max}`;
-    };
-    summary.textContent = `${data.count * data.count} cells · ${range(plan.columnBands)} × ${range(plan.rowBands)} mm${data.swell ? " (expanded)" : " each"} · ${plan.across} × ${plan.down} = ${plan.pages} grid sheet${plan.pages === 1 ? "" : "s"}, plus instructions`;
+    summary.textContent = `${data.count * data.count} cells · ${Number(plan.cellWidth.toFixed(3))} × ${Number(plan.cellHeight.toFixed(3))} mm${data.swell ? " (expanded)" : " each"} · ${plan.across} × ${plan.down} = ${plan.pages} grid sheet${plan.pages === 1 ? "" : "s"}, plus instructions`;
   }
 
   function validate() {

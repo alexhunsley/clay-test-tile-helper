@@ -15,10 +15,12 @@ footprint as a minimum and expand cells to fill the existing sheet layout.
 Maximum cell width and height are enabled with this option; 0 means no limit.
 A positive maximum must be at least the footprint size. Width and height grow
 independently, with the same expanded width and height applied to every cell on
-every sheet. Whole cells are redistributed between sheets to find the largest
-uniform size that preserves the original sheets across/down. Limits and whole
-cell boundaries can leave unused space. The preview and each PDF sheet show
-the common expanded dimensions.
+every sheet. The entire table is a continuous surface, sliced into paper-sized
+rectangles. Cells can cross sheet boundaries in either direction, including a
+single cell larger than one sheet. The initial footprint determines the sheets
+across/down. Swelling expands every cell to fill that combined paper area;
+only a maximum size limit can prevent it from filling an axis. The preview
+and each PDF sheet show the common expanded dimensions.
 Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
@@ -27,8 +29,11 @@ Every cell has a centered footer in column.row order, followed by the column
 glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
 shrink to stay inside the cell; very small cells require very small type.
 
-With swelling off, cells retain their exact requested width and height in PDF coordinates. Page
-breaks always fall between whole cells. Row labels are rotated 90 degrees and
+With swelling off, cells retain their exact requested width and height in PDF
+coordinates. Page boundaries can cut through cells, labels and text. Trim the
+page margins and the sheet-position headers, then join the table portions to
+restore the continuous grid. Internal paper edges do not introduce extra grid
+lines. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost
 sheets. Continuation sheets reclaim the space from the omitted labels. On grid
 pages, the project title is a faint diagonal watermark across the cells; its
@@ -45,8 +50,8 @@ and related glyphs), rather than every script or emoji.
 At the default margins, the usable grid area on the top-left sheet is
 261 × 154 mm, after allowing for the sheet heading, labels and margins. Sheets without row labels gain
 12 mm of width; sheets without column labels gain 24 mm of height.
-Each dimension must be positive and fit
-inside the area available at the chosen margins. Horizontal margins are limited
+Cell dimensions must be positive, and may exceed the size of one sheet.
+Horizontal margins are limited
 to 95.5 mm so the 100 mm scale fits, and vertical margins to 65 mm to leave
 space for headings and grid labels. Instructions wrap onto more pages as needed.
 To prevent accidental huge documents, the MVP accepts up to
