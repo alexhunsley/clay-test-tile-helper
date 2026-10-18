@@ -23,6 +23,9 @@ Generate PDF downloads an A4 landscape document with instructions,
 a complete numbered glaze key, and as many grid sheets as necessary. The grid
 includes all N × N combinations, including the diagonal. Rows represent the
 first glaze and columns the second glaze.
+Every cell has a centered footer in column.row order, followed by the column
+glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
+shrink to stay inside the cell; very small cells require very small type.
 
 With swelling off, cells retain their exact requested width and height in PDF coordinates. Page
 breaks always fall between whole cells. Row labels are rotated 90 degrees and

@@ -709,6 +709,28 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       fitted(subtitle, left, area.marginV + 14, area.contentWidth, 8, 9);
     }
 
+    function cellFooter(value, x, y, width, height) {
+      const padding = Math.min(2, width * .05, height * .05);
+      const innerWidth = Math.max(.000001, width - 2 * padding);
+      const footerHeight = Math.min(12, height * .25);
+      const pointToMm = 25.4 / 72;
+      let size = 8, lines;
+      for (; size >= 4; size -= .5) {
+        doc.setFontSize(size);
+        lines = doc.splitTextToSize(value, innerWidth);
+        if (lines.length * size * pointToMm * 1.2 <= footerHeight) break;
+      }
+      if (size < 4) {
+        // Keep the complete pair even when the footprint is too small for readable type.
+        doc.setFontSize(1);
+        size = Math.min(4, innerWidth / Math.max(doc.getTextWidth(value), .000001), footerHeight / (pointToMm * 1.2));
+        lines = [value];
+      }
+      const lineHeight = size * pointToMm * 1.2;
+      const baseline = y + height - padding - size * pointToMm * .25 - (lines.length - 1) * lineHeight;
+      text(lines.join("\n"), x + width / 2, baseline, size, { align: "center", lineHeightFactor: 1.2 });
+    }
+
     function watermark(x, y, width, height) {
       const angle = Math.atan2(height, width);
       const cos = Math.cos(angle), sin = Math.sin(angle);
@@ -806,6 +828,14 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
         for (let row = 0; row <= rows; row++) {
           const lineY = gridY + row * cellHeight;
           doc.line(left, lineY, gridX + gridWidth, lineY);
+        }
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < columns; col++) {
+            const columnIndex = columnStart + col;
+            const rowIndex = rowStart + row;
+            const pair = `${columnIndex + 1}.${rowIndex + 1} ${data.names[columnIndex]} / ${data.names[rowIndex]}`;
+            cellFooter(pair, gridX + col * cellWidth, gridY + row * cellHeight, cellWidth, cellHeight);
+          }
         }
       }
     }

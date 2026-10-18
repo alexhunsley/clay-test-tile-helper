@@ -197,6 +197,47 @@ test('long names wrap through additional key pages and still generate all grid s
   assert.ok(pdf.getNumberOfPages() > helper.layout(25, 20.5, 25.25).pages + 1);
 });
 
+test('every cell footer uses global column.row indices and matching names, centered at the foot', () => {
+  for (const swell of [false, true]) {
+    const data = helper.validate({ ...valid, swell }).data;
+    const calls = [];
+    function TrackedPDF(options) {
+      const doc = new browser.jspdf.jsPDF(options);
+      const text = doc.text.bind(doc);
+      doc.text = (...args) => {
+        if (/^\d+\.\d+ /.test(String(args[0]))) calls.push({ page: doc.getNumberOfPages(), args, size: doc.getFontSize() });
+        return text(...args);
+      };
+      return doc;
+    }
+    helper.createPdf(data, TrackedPDF);
+    assert.equal(calls.length, 36);
+    const seen = new Set();
+    const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
+    for (const {page, args: [value, x, y, options], size} of calls) {
+      const normalized = value.replace(/\n/g, ' ');
+      const [, colText, rowText] = /^(\d+)\.(\d+) /.exec(normalized);
+      const col = Number(colText) - 1, row = Number(rowText) - 1;
+      const key = `${col}.${row}`;
+      assert.ok(!seen.has(key));
+      seen.add(key);
+      assert.equal(normalized, `${col + 1}.${row + 1} ${data.names[col]} / ${data.names[row]}`);
+      const sheetColumn = plan.columnBands.findIndex(band => col >= band.start && col < band.start + band.count);
+      const sheetRow = plan.rowBands.findIndex(band => row >= band.start && row < band.start + band.count);
+      assert.equal(page, 2 + sheetRow * plan.across + sheetColumn);
+      const cb = plan.columnBands[sheetColumn], rb = plan.rowBands[sheetRow];
+      const gridX = data.marginH + (sheetColumn === 0 ? helper.PAGE.labelWidth : 0);
+      const gridY = plan.area.gridTop + (sheetRow === 0 ? helper.PAGE.labelHeight : 0);
+      assert.ok(Math.abs(x - (gridX + (col - cb.start + .5) * cb.cellSize)) < 1e-8);
+      const cellBottom = gridY + (row - rb.start + 1) * rb.cellSize;
+      assert.ok(y < cellBottom && y > cellBottom - 12);
+      assert.equal(options.align, 'center');
+      assert.ok(size > 0);
+    }
+    assert.equal(calls.find(call => call.args[0].startsWith('2.3 ')).args[0], '2.3 Blue / White');
+  }
+});
+
 test('custom margins reclaim space, preserve cell sizes, constrain PDF content and round-trip in links', () => {
   assert.equal(helper.layout(5, 54.5, 62, 12, 12).pages, 6);
   assert.equal(helper.layout(5, 54.5, 62, 5, 5).pages, 2);
