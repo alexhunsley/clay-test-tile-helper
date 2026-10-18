@@ -11,15 +11,19 @@ includes all N × N combinations, including the diagonal. Rows represent the
 first glaze and columns the second glaze.
 
 Cells retain their exact requested width and height in PDF coordinates. Page
-breaks always fall between whole cells. Labels repeat on each sheet. Print at
+breaks always fall between whole cells. Row labels are rotated 90 degrees and
+appear only on the leftmost sheets. Column labels appear only on the topmost
+sheets. Continuation sheets reclaim the space from the omitted labels. Print at
 **100% / Actual size**, with A4 landscape selected, and check the 100 mm scale.
 Printer scaling affects physical dimensions; the page cannot override it.
 For very small cells, labels may be shortened or omitted; the full glaze key is
 always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
-The usable grid area is 237 × 124 mm per sheet, after allowing for titles,
-labels, margins, and the scale check. Each dimension must be positive and fit
+The usable grid area on the top-left sheet is 261 × 124 mm, after allowing for
+titles, labels, margins, and the scale check. Sheets without row labels gain
+12 mm of width; sheets without column labels gain 24 mm of height.
+Each dimension must be positive and fit
 inside that area. To prevent accidental huge documents, the MVP accepts up to
 100 glazes and 400 grid sheets.
 

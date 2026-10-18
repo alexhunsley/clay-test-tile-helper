@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 36, labelHeight: 24, gridX: 48, gridY: 58, gridWidth: 237, gridHeight: 124 });
+  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 58, gridWidth: 261, gridHeight: 124, continuationWidth: 273, continuationHeight: 148 });
   const MAX_GLAZES = 100;
   const MAX_GRID_PAGES = 400;
 
@@ -9,9 +9,21 @@
     const columnsPerPage = Math.min(count, Math.floor((PAGE.gridWidth + 1e-9) / width));
     const rowsPerPage = Math.min(count, Math.floor((PAGE.gridHeight + 1e-9) / height));
     if (columnsPerPage < 1 || rowsPerPage < 1) return null;
-    const across = Math.ceil(count / columnsPerPage);
-    const down = Math.ceil(count / rowsPerPage);
-    return { columnsPerPage, rowsPerPage, across, down, pages: across * down };
+    function bands(firstCapacity, continuationSpace, cellSize) {
+      const result = [];
+      const capacity = Math.floor((continuationSpace + 1e-9) / cellSize);
+      for (let start = 0; start < count;) {
+        const size = Math.min(count - start, start === 0 ? firstCapacity : capacity);
+        result.push({ start, count: size });
+        start += size;
+      }
+      return result;
+    }
+    const columnBands = bands(columnsPerPage, PAGE.continuationWidth, width);
+    const rowBands = bands(rowsPerPage, PAGE.continuationHeight, height);
+    const across = columnBands.length;
+    const down = rowBands.length;
+    return { columnsPerPage, rowsPerPage, columnBands, rowBands, across, down, pages: across * down };
   }
 
   function validate(raw) {
@@ -74,8 +86,10 @@
       doc.text(String(value), x, y, options);
     };
 
-    function fitted(value, x, y, width, height, maxSize = 10) {
+    function fitted(value, x, y, width, height, maxSize = 10, rotated = false) {
       // All label text remains inside the reserved label box. Full names are in the key.
+      const physicalHeight = height;
+      if (rotated) [width, height] = [height, width];
       let lines, size = maxSize;
       const padding = Math.min(2, height / 5, width / 5);
       const innerWidth = Math.max(.05, width - padding * 2);
@@ -97,7 +111,11 @@
         while (last.length && doc.getTextWidth(last + "…") > innerWidth) last = last.slice(0, -1);
         lines[maxLines - 1] = last + "…";
       }
-      text(lines.join("\n"), x + padding, y + padding + size * .352778, size, { lineHeightFactor: 1.15 });
+      if (rotated) {
+        text(lines.join("\n"), x + padding + size * .352778, y + physicalHeight - padding, size, { angle: 90, lineHeightFactor: 1.15 });
+      } else {
+        text(lines.join("\n"), x + padding, y + padding + size * .352778, size, { lineHeightFactor: 1.15 });
+      }
     }
 
     function pageHeading(subtitle) {
@@ -112,7 +130,7 @@
       "Print on A4 at 100% / Actual size. Turn off Fit to page. Measure the 100 mm scale on a grid sheet before using it.",
       "Use the row glaze first and the column glaze second. The diagonal pairs a glaze with itself. Keep your application method consistent.",
       "Place each tile in its labelled cell to keep combinations organised. Record the glaze pair on the tile before moving it.",
-      "Every sheet repeats its row and column labels. Long labels may be shortened; use the full glaze key below. Very small footprints may leave no room for readable grid labels."
+      "Arrange sheets by their sheet row and column. Row labels run vertically along the far left edge; column labels appear only along the top edge of the full grid. Long labels may be shortened; use the full glaze key below."
     ];
     let y = 42;
     doc.setFontSize(10);
@@ -141,36 +159,39 @@
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
         doc.addPage();
-        const rowStart = sheetRow * plan.rowsPerPage;
-        const columnStart = sheetColumn * plan.columnsPerPage;
-        const rows = Math.min(plan.rowsPerPage, data.count - rowStart);
-        const columns = Math.min(plan.columnsPerPage, data.count - columnStart);
+        const { start: rowStart, count: rows } = plan.rowBands[sheetRow];
+        const { start: columnStart, count: columns } = plan.columnBands[sheetColumn];
+        const showRowLabels = sheetColumn === 0;
+        const showColumnLabels = sheetRow === 0;
+        const labelWidth = showRowLabels ? PAGE.labelWidth : 0;
+        const labelHeight = showColumnLabels ? PAGE.labelHeight : 0;
+        const gridX = PAGE.margin + labelWidth;
+        const gridY = 34 + labelHeight;
         const gridWidth = columns * data.width;
         const gridHeight = rows * data.height;
         pageHeading(`Grid / sheet row ${sheetRow + 1} of ${plan.down}, column ${sheetColumn + 1} of ${plan.across} / cells ${data.width} × ${data.height} mm`);
 
         doc.setFillColor(...labelFill);
-        doc.rect(PAGE.margin, 34, PAGE.labelWidth + gridWidth, PAGE.labelHeight, "F");
-        doc.rect(PAGE.margin, PAGE.gridY, PAGE.labelWidth, gridHeight, "F");
-        fitted("ROW: first glaze\nCOLUMN: second glaze", PAGE.margin, 34, PAGE.labelWidth, PAGE.labelHeight, 8);
-        for (let col = 0; col < columns; col++) {
+        if (showColumnLabels) doc.rect(PAGE.margin, 34, labelWidth + gridWidth, labelHeight, "F");
+        if (showRowLabels) doc.rect(PAGE.margin, gridY, labelWidth, gridHeight, "F");
+        for (let col = 0; showColumnLabels && col < columns; col++) {
           const index = columnStart + col;
-          fitted(`#${index + 1}  ${data.names[index]}`, PAGE.gridX + col * data.width, 34, data.width, PAGE.labelHeight);
+          fitted(`#${index + 1}  ${data.names[index]}`, gridX + col * data.width, 34, data.width, labelHeight);
         }
-        for (let row = 0; row < rows; row++) {
+        for (let row = 0; showRowLabels && row < rows; row++) {
           const index = rowStart + row;
-          fitted(`#${index + 1}  ${data.names[index]}`, PAGE.margin, PAGE.gridY + row * data.height, PAGE.labelWidth, data.height);
+          fitted(`#${index + 1}  ${data.names[index]}`, PAGE.margin, gridY + row * data.height, labelWidth, data.height, 10, true);
         }
         doc.setDrawColor(115, 124, 112);
         doc.setLineWidth(.2);
-        doc.rect(PAGE.margin, 34, PAGE.labelWidth + gridWidth, PAGE.labelHeight + gridHeight);
+        doc.rect(PAGE.margin, 34, labelWidth + gridWidth, labelHeight + gridHeight);
         for (let col = 0; col <= columns; col++) {
-          const x = PAGE.gridX + col * data.width;
-          doc.line(x, 34, x, PAGE.gridY + gridHeight);
+          const x = gridX + col * data.width;
+          doc.line(x, 34, x, gridY + gridHeight);
         }
         for (let row = 0; row <= rows; row++) {
-          const lineY = PAGE.gridY + row * data.height;
-          doc.line(PAGE.margin, lineY, PAGE.gridX + gridWidth, lineY);
+          const lineY = gridY + row * data.height;
+          doc.line(PAGE.margin, lineY, gridX + gridWidth, lineY);
         }
         doc.setDrawColor(...muted);
         doc.line(12, 193, 112, 193);

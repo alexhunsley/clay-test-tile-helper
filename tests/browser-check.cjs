@@ -37,7 +37,7 @@ const { pathToFileURL } = require('node:url');
     await page.locator('#glaze-count').fill('5');
     assert.equal(await page.locator('#glaze-4').inputValue(), 'Keep this name');
 
-    await page.locator('#tile-width').fill('238');
+    await page.locator('#tile-width').fill('262');
     await page.locator('#tile-height').fill('0');
     await page.locator('#glaze-1').fill('');
     await page.locator('#generate').click();
@@ -66,7 +66,7 @@ const { pathToFileURL } = require('node:url');
     await download.saveAs(path.join(output, 'browser-download.pdf'));
     assert.equal(download.suggestedFilename(), 'Émaux-ash-1.pdf');
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
-    assert.match(await page.locator('#form-status').textContent(), /7 pages/);
+    assert.match(await page.locator('#form-status').textContent(), /4 pages/);
     assert.ok((await fs.stat(path.join(output, 'browser-download.pdf'))).size > 1000);
     await page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true });
 
