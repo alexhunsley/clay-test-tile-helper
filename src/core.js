@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 24, gridX: 24, gridY: 36, gridWidth: 261, gridHeight: 162, continuationWidth: 273, continuationHeight: 186 });
+  const PAGE = Object.freeze({ width: 297, height: 210, margin: 12, labelWidth: 12, labelHeight: 8, gridX: 24, gridY: 20, gridWidth: 261, gridHeight: 178, continuationWidth: 273, continuationHeight: 186 });
   const MAX_GLAZES = 100;
   const MAX_GRID_PAGES = 400;
 

@@ -61,9 +61,10 @@ always included. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
 and related glyphs), rather than every script or emoji.
 
 At the default margins, the usable grid area on the top-left sheet is
-261 × 162 mm, after allowing for labels and margins. The table starts at the
+261 × 178 mm, after allowing for labels and margins. Column headers are 8 mm
+high. The table starts at the
 top margin with no sheet heading. Sheets without row labels gain
-12 mm of width; sheets without column labels gain 24 mm of height.
+12 mm of width; sheets without column labels gain 8 mm of height.
 Cell dimensions must be positive, and may exceed the size of one sheet.
 Horizontal margins are limited
 to 95.5 mm so the 100 mm scale fits, and vertical margins to 65 mm to leave

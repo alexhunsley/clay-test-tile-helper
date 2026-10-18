@@ -42,17 +42,17 @@ test('validation allows oversized cells and rejects invalid input or excessive d
 test('continuous pagination covers every millimetre, includes partial cells and avoids extra sheets at exact fits',()=>{
   for(const [count,width,height] of [[1,500,300],[5,50,60],[6,50,60],[13,47.4,31],[100,.1,.2]]){
     const plan=helper.layout(count,width,height);
-    close(plan.tableWidth,12+count*width); close(plan.tableHeight,24+count*height);
+    close(plan.tableWidth,12+count*width); close(plan.tableHeight,8+count*height);
     for(const [slices,span,total] of [[plan.columnBands,273,plan.tableWidth],[plan.rowBands,186,plan.tableHeight]]){
       close(slices.reduce((sum,s)=>sum+s.extent,0),total);
       slices.forEach((s,i)=>{close(s.offset,i*span);assert.ok(s.extent>0 && s.extent<=span+1e-8);if(i)close(slices[i-1].offset+slices[i-1].extent,s.offset);});
     }
   }
   const plan=helper.layout(6,50,60);
-  assert.equal(plan.across,2); assert.equal(plan.down,3);
+  assert.equal(plan.across,2); assert.equal(plan.down,2);
   assert.equal(plan.columnBands[0].count,6); assert.equal(plan.columnBands[1].start,5);
   assert.equal(plan.rowBands[0].count,3); assert.equal(plan.rowBands[1].start,2);
-  assert.equal(helper.layout(3,87,162/3).pages,1);
+  assert.equal(helper.layout(3,87,178/3).pages,1);
   assert.equal(helper.layout(5,50,60).down,2);
 });
 
@@ -65,14 +65,14 @@ test('uniform swelling fills the combined sheet area and respects independent li
       assert.ok(plan.columnBands.every(s=>s.cellSize===plan.cellWidth));
       assert.ok(plan.rowBands.every(s=>s.cellSize===plan.cellHeight));
       close(plan.cellWidth,Math.min((plan.across*plan.area.contentWidth-12)/count,maxWidth||Infinity));
-      close(plan.cellHeight,Math.min((plan.down*plan.area.continuationHeight-24)/count,maxHeight||Infinity));
+      close(plan.cellHeight,Math.min((plan.down*plan.area.continuationHeight-8)/count,maxHeight||Infinity));
       assert.ok(plan.cellWidth>=width-1e-8 && plan.cellHeight>=height-1e-8);
       if(!maxWidth)close(plan.tableWidth,plan.across*plan.area.contentWidth);
       if(!maxHeight)close(plan.tableHeight,plan.down*plan.area.continuationHeight);
     }
   }
   const plan=helper.layout(6,50,60,12,12,{swell:true});
-  close(plan.cellWidth,89);close(plan.cellHeight,89);close(plan.tableWidth,546);close(plan.tableHeight,558);
+  close(plan.cellWidth,89);close(plan.cellHeight,364/6);close(plan.tableWidth,546);close(plan.tableHeight,372);
   for(const [changes,key] of [[{maxWidth:'49'},'maxWidth'],[{maxHeight:''},'maxHeight'],[{maxHeight:'-1'},'maxHeight']]){
     assert.ok(helper.validate({...valid,swell:true,...changes}).errors[key]);
     assert.equal(helper.validate({...valid,swell:false,...changes}).errors[key],undefined);
@@ -103,9 +103,9 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
       const i=page-firstGridPage,cb=plan.columnBands[i%plan.across],rb=plan.rowBands[Math.floor(i/plan.across)];
       assert.ok(x1>=12-1e-7 && x2<=285+1e-7 && y1>=12-1e-7 && y2<=198+1e-7);
       if(x1===x2){const global=x1-12+cb.offset;if(Math.abs(global)>1e-8)close((global-12)/plan.cellWidth,Math.round((global-12)/plan.cellWidth));}
-      else {const global=y1-12+rb.offset;if(Math.abs(global)>1e-8)close((global-24)/plan.cellHeight,Math.round((global-24)/plan.cellHeight));}
+      else {const global=y1-12+rb.offset;if(Math.abs(global)>1e-8)close((global-8)/plan.cellHeight,Math.round((global-8)/plan.cellHeight));}
     }
-    const seamY=12+24+plan.cellHeight;
+    const seamY=12+8+plan.cellHeight;
     assert.ok(lines.some(c=>c.page===firstGridPage && c.args[0]===12 && c.args[2]===285 && Math.abs(c.args[1]-seamY)<1e-8));
     assert.ok(lines.some(c=>c.page===firstGridPage+1 && c.args[0]===12 && Math.abs(c.args[1]-seamY)<1e-8));
     for(let page=firstGridPage;page<=pdf.getNumberOfPages();page++){
@@ -137,7 +137,7 @@ test('cell footers preserve column.row pairs and global positions across paper c
       assert.equal(normalized,`${column}.${row} ${valid.names[col]} / ${valid.names[r]}`);
       const i=page-firstGridPage,cb=plan.columnBands[i%plan.across],rb=plan.rowBands[Math.floor(i/plan.across)];
       close(x-12+cb.offset,12+(col+.5)*plan.cellWidth);
-      const globalY=y-12+rb.offset,bottom=24+(r+1)*plan.cellHeight;
+      const globalY=y-12+rb.offset,bottom=8+(r+1)*plan.cellHeight;
       assert.ok(globalY<bottom && globalY>bottom-12);assert.equal(options.align,'center');
     }
     assert.equal(seen.size,36);assert.ok(footers.some(c=>c.args[0]==='2.3 Blue / White'));
@@ -146,7 +146,7 @@ test('cell footers preserve column.row pairs and global positions across paper c
 
 test('one cell can fill four sheets without artificial borders at the internal paper edges',()=>{
   const {pdf,calls,plan,firstGridPage}=render({...valid,count:1,width:500,height:300,names:['Large tile'],swell:true});
-  assert.equal(plan.across,2);assert.equal(plan.down,2);close(plan.cellWidth,534);close(plan.cellHeight,348);
+  assert.equal(plan.across,2);assert.equal(plan.down,2);close(plan.cellWidth,534);close(plan.cellHeight,364);
   assert.equal(pdf.getNumberOfPages()-firstGridPage+1,4);
   assert.equal(calls.some(c=>c.page===firstGridPage && c.method==='line' && c.args[0]===285 && c.args[2]===285),false);
   assert.equal(calls.some(c=>c.page===firstGridPage && c.method==='line' && c.args[1]===198 && c.args[3]===198),false);

@@ -173,7 +173,7 @@ const { pathToFileURL } = require('node:url');
     assert.equal(await page.locator('#margin-horizontal').inputValue(), '12');
     assert.equal(await page.locator('#margin-vertical').inputValue(), '12');
     await page.goto(`${href}?v=1&title=Spanning%20cell&count=1&width=500&height=300&swell=1&glaze=Ash`);
-    assert.match(await page.locator('#layout-summary').textContent(), /534 × 348 mm/);
+    assert.match(await page.locator('#layout-summary').textContent(), /534 × 364 mm/);
     assert.match(await page.locator('#layout-summary').textContent(), /2 × 2 = 4 grid sheets/);
     const spanningDownload = page.waitForEvent('download');
     await page.locator('#generate').click();
