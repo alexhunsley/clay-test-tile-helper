@@ -1003,6 +1003,22 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
     }
     helper.createPdf(data, CanvasDocument, { tableOnly: true });
     ctx.restore();
+    // Preview-only paper cuts, in assembled image coordinates. Drawing these
+    // last makes them bisect the paired join markers as well as the grid.
+    ctx.save();
+    ctx.strokeStyle = "#515a52";
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = "round";
+    ctx.setLineDash([.01, 5]);
+    for (const slice of plan.columnBands.slice(1)) {
+      const x = slice.offset * scale;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (const slice of plan.rowBands.slice(1)) {
+      const y = slice.offset * scale;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+    ctx.restore();
     return new Promise((resolve, reject) => canvas.toBlob(blob => {
       if (blob) resolve(blob); else reject(new Error("PNG encoding failed."));
     }, "image/png"));
