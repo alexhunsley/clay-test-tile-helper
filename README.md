@@ -55,6 +55,10 @@ restore the continuous grid. Every joining edge has a medium-grey semicircle
 with a white letter at its midpoint. Match identical letters on adjacent sheets;
 each join has its own code (A–Z, then AA, AB, and so on). The flat side sits
 exactly on the cut edge; outside edges have no marker.
+In the PDF only, pages below the first sheet row have a dashed top cut guide,
+and pages after the first sheet column have a dashed left cut guide. Repeated
+"CUT HERE" labels sit just above or to the left of those edges, in the waste
+margins. The assembly PNG does not include these cut guides or labels.
 Internal paper edges do not introduce extra grid
 lines. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost

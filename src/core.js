@@ -344,6 +344,32 @@
       doc.text(letter, textX, textY + size * (25.4 / 72) * .35, { align: "center" });
     }
 
+    function cutGuides(sheetRow, sheetColumn, x, y, width, height) {
+      if (sheetRow === 0 && sheetColumn === 0) return;
+      doc.saveGraphicsState();
+      doc.setDrawColor(110, 110, 110);
+      doc.setLineWidth(.2);
+      doc.setLineDashPattern([2, 1.5], 0);
+      if (sheetRow > 0) doc.line(x, y, x + width, y);
+      if (sheetColumn > 0) doc.line(x, y, x, y + height);
+      doc.setLineDashPattern([], 0);
+      doc.setFontSize(7);
+      doc.setTextColor(110, 110, 110);
+      const label = "CUT HERE";
+      const labelLength = doc.getTextWidth(label);
+      const positions = span => [.15, .35, .65, .85].map(fraction => span * fraction).filter(position =>
+        position - labelLength / 2 >= 2 && position + labelLength / 2 <= span - 2 &&
+        Math.abs(position - span / 2) >= 8 + labelLength / 2);
+      // Put the words in the waste margins, outside the table's clipping area.
+      if (sheetRow > 0) for (const position of positions(width)) {
+        doc.text(label, x + position, y - 1.5, { align: "center" });
+      }
+      if (sheetColumn > 0) for (const position of positions(height)) {
+        doc.text(label, x - 1.5, y + position + labelLength / 2, { angle: 90 });
+      }
+      doc.restoreGraphicsState();
+    }
+
     if (!renderOptions.tableOnly) {
       pageHeading("Ceramic Test Tile Helper / Checklist");
       doc.setDrawColor(...muted);
@@ -463,6 +489,7 @@
           joinMarker(joinLetter(horizontalJoins + sheetRow * plan.across + sheetColumn), "bottom", left + viewWidth / 2, area.gridTop + viewHeight, radius);
         }
         doc.restoreGraphicsState();
+        if (!renderOptions.tableOnly) cutGuides(sheetRow, sheetColumn, left, area.gridTop, viewWidth, viewHeight);
       }
     }
     return doc;

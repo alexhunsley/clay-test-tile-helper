@@ -13,19 +13,22 @@ const valid={title:'Studio tests',count:'6',width:'50',height:'60',marginH:'12',
 fs.mkdirSync(path.join(root,'test-output'),{recursive:true});
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
 
-function render(raw){
+function render(raw,renderOptions={}){
   const {data,errors}=helper.validate(raw);
   assert.equal(Object.keys(errors).length,0,JSON.stringify(errors));
   const calls=[];
   function TrackedPDF(options){
     const doc=new browser.jspdf.jsPDF({...options,compress:false});
+    let dash=[];
+    const setDash=doc.setLineDashPattern.bind(doc);
+    doc.setLineDashPattern=(pattern,phase)=>{dash=[...pattern];return setDash(pattern,phase);};
     for(const method of ['line','rect','circle','text','clip']){
       const original=doc[method].bind(doc);
-      doc[method]=(...args)=>{calls.push({method,page:doc.getNumberOfPages(),args,color:doc.getTextColor(),size:doc.getFontSize()});return original(...args);};
+      doc[method]=(...args)=>{calls.push({method,page:doc.getNumberOfPages(),args,color:doc.getTextColor(),size:doc.getFontSize(),dash:[...dash]});return original(...args);};
     }
     return doc;
   }
-  const pdf=helper.createPdf(data,TrackedPDF);
+  const pdf=helper.createPdf(data,TrackedPDF,renderOptions);
   const plan=helper.layout(data.count,data.width,data.height,data.marginH,data.marginV,data);
   const firstGridPage=pdf.getNumberOfPages()-plan.pages+1;
   return {pdf,calls,plan,firstGridPage};
@@ -99,7 +102,7 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
     const output=pdf.output();assert.ok(output.startsWith('%PDF-') && output.includes('/FontFile2'));
     assert.match(output,/re\nW\nn/);
     assert.doesNotMatch(output,/re\nS\nW/); // A stroked rectangle consumes the path and would disable clipping.
-    const lines=calls.filter(c=>c.method==='line' && c.page>=firstGridPage);
+    const lines=calls.filter(c=>c.method==='line' && c.page>=firstGridPage && !c.dash.length);
     for(const {page,args:[x1,y1,x2,y2]} of lines){
       const i=page-firstGridPage,cb=plan.columnBands[i%plan.across],rb=plan.rowBands[Math.floor(i/plan.across)];
       assert.ok(x1>=12-1e-7 && x2<=285+1e-7 && y1>=12-1e-7 && y2<=198+1e-7);
@@ -305,4 +308,31 @@ test('grid always starts on a fresh page after short and multi-page checklists',
     if(count===1)assert.equal(lastTask.page,1);
     else assert.ok(lastTask.page>1);
   }
+});
+
+test('PDF cut guides cover only joining top and left edges and never enter the preview renderer',()=>{
+  const {calls,plan,firstGridPage}=render({...valid,swell:true});
+  for(let row=0;row<plan.down;row++)for(let col=0;col<plan.across;col++){
+    const page=firstGridPage+row*plan.across+col;
+    const cuts=calls.filter(c=>c.page===page && c.method==='line' && c.dash.length);
+    assert.equal(cuts.length,Number(row>0)+Number(col>0));
+    for(const cut of cuts){
+      assert.deepEqual(cut.dash,[2,1.5]);
+      const [x1,y1,x2,y2]=cut.args;
+      close(x1,12);close(y1,12);
+      if(y1===y2){assert.ok(row>0);close(x2,12+plan.columnBands[col].extent);}
+      else {assert.ok(col>0);close(x1,x2);close(y2,12+plan.rowBands[row].extent);}
+    }
+    const words=calls.filter(c=>c.page===page && c.method==='text' && c.args[0]==='CUT HERE');
+    const topWords=words.filter(c=>!c.args[3].angle);
+    const leftWords=words.filter(c=>c.args[3].angle===90);
+    assert.equal(topWords.length,row>0?4:0);
+    assert.equal(leftWords.length,col>0?4:0);
+    topWords.forEach(c=>{assert.ok(c.args[2]<12);assert.equal(c.args[3].align,'center');});
+    leftWords.forEach(c=>assert.ok(c.args[1]<12));
+  }
+  assert.equal(calls.some(c=>c.page<firstGridPage && c.method==='text' && c.args[0]==='CUT HERE'),false);
+  const preview=render({...valid,swell:true},{tableOnly:true});
+  assert.equal(preview.firstGridPage,1);
+  assert.equal(preview.calls.some(c=>c.dash.length || (c.method==='text' && c.args[0]==='CUT HERE')),false);
 });
