@@ -289,3 +289,20 @@ test('tile decoder maps column.row to the correct glaze order and validates code
   assert.match(helper.decodeTile('1','2',0,valid.names).error,/number of glazes/);
   assert.match(helper.decodeTile('1','2',2,['Ash',' ']).error,/glaze #2/);
 });
+
+test('grid always starts on a fresh page after short and multi-page checklists',()=>{
+  for(const count of [1,25]){
+    const names=Array.from({length:count},(_,i)=>`Glaze ${i+1}`);
+    const {calls,firstGridPage}=render({...valid,count,names});
+    const lastTask=calls.find(c=>c.method==='text' && c.args[0]==='Wipe feet');
+    const firstGridClip=calls.find(c=>c.method==='clip');
+    assert.ok(lastTask);
+    assert.equal(firstGridClip.page,lastTask.page+1);
+    assert.equal(firstGridPage,firstGridClip.page);
+    const checklistPages=new Set(calls.filter(c=>c.method==='rect' && c.args[2]===3.5 && c.args[3]===3.5 && c.args[4]==='S').map(c=>c.page));
+    const gridPages=new Set(calls.filter(c=>c.method==='clip').map(c=>c.page));
+    assert.ok([...checklistPages].every(page=>!gridPages.has(page)));
+    if(count===1)assert.equal(lastTask.page,1);
+    else assert.ok(lastTask.page>1);
+  }
+});

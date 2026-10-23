@@ -963,9 +963,13 @@ globalThis.CERAMIC_FONT = "AAEAAAASAQAABAAgR0RFRgLh80EAAAEsAAAFxkdQT1MVIAsaAAAG9
       }
     }
 
+    // PDF instructions and grid sheets must never share a page. The assembly
+    // preview omits instructions and starts directly on its first grid sheet.
+    if (!renderOptions.tableOnly) doc.addPage();
+
     for (let sheetRow = 0; sheetRow < plan.down; sheetRow++) {
       for (let sheetColumn = 0; sheetColumn < plan.across; sheetColumn++) {
-        if (!renderOptions.tableOnly || sheetRow !== 0 || sheetColumn !== 0) doc.addPage();
+        if (sheetRow !== 0 || sheetColumn !== 0) doc.addPage();
         const rowSlice = plan.rowBands[sheetRow];
         const columnSlice = plan.columnBands[sheetColumn];
         const { cellWidth, cellHeight } = plan;
