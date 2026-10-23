@@ -12,6 +12,8 @@ const { pathToFileURL } = require('node:url');
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ viewport: { width: 1200, height: 1100 }, acceptDownloads: true });
+    // Keep optional browser checks deterministic without making CDN requests.
+    await context.route('https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js', route => route.fulfill({path:path.join(root,'vendor/jspdf.umd.min.js'),contentType:'application/javascript'}));
     await context.setOffline(true);
     const page = await context.newPage();
     const errors = [];

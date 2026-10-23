@@ -24,7 +24,8 @@
   }
 
   function headerDimensions(count, width, height, names) {
-    if (!names) return { labelWidth: PAGE.labelWidth, labelHeight: PAGE.labelHeight };
+    // Keep setup validation and share links usable if the CDN cannot be loaded.
+    if (!names || !root.jspdf?.jsPDF) return { labelWidth: PAGE.labelWidth, labelHeight: PAGE.labelHeight };
     const labels = Array.from({ length: count }, (_, i) => `#${i + 1}  ${String(names[i] ?? "").slice(0, 100)}`);
     const key = JSON.stringify([width, height, labels]);
     if (headerCache?.key === key) return headerCache.value;

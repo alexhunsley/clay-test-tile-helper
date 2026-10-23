@@ -1,8 +1,11 @@
 # Ceramic Test Tile Helper
 
-Open **index.html** directly in a browser. It is a self-contained HTML file with
-all JavaScript embedded: no server, installation, or internet
-connection is needed. It can also be hosted by any static web host.
+Upload **index.html** to any static web host, or open it directly in a browser.
+Application code and styling are embedded. jsPDF 4.2.1 loads from jsDelivr via
+a version-pinned URL with an integrity hash, so an internet connection is needed
+to load the PDF tools. No backend or installation is required. If the library
+cannot load, download buttons are disabled; setup editing, sharing and decoding
+remain available.
 
 Enter a project title, glaze count, footprint width/height in millimetres,
 horizontal/vertical page margins, glaze step descriptions, and glaze names. Both margins default to
@@ -40,8 +43,8 @@ same table renderer as the PDF, including clipped cells, labels, watermarks and
 edge letters. The image's longest side is 3,200 pixels. Dotted lines mark
 internal paper edges and bisect matching join
 markers in the preview only; the PDF has no dotted seam lines. It is an
-overview rather than a print-scale template. It works offline with system
-fonts and requires the same valid form values as PDF generation.
+overview rather than a print-scale template. It uses system fonts, needs the
+CDN PDF library to load, and requires the same valid form values as PDF generation.
 
 **Tile decoder** opens a modal with two fields for a column.row tile code.
 It uses the current setup's glaze names to show "Column glaze below Row glaze."
@@ -117,8 +120,11 @@ mise exec -- node tests/browser-check.cjs
 ```
 
 Set `PLAYWRIGHT_MODULE` to the package path to use a temporary external install.
-It checks the bundled page offline via `file://`, including PDF downloads,
+It checks the page via `file://`, intercepting the pinned CDN URL with the local
+jsPDF test fixture so those checks can run offline. It covers PDF downloads,
 field validation, share links, name retention, and mobile layout. Test PDFs and
 screenshots are written to the ignored `test-output/` folder.
 
-Vendor dependency: jsPDF 4.2.1 (MIT), with its license included under `vendor/`.
+Dependency: jsPDF 4.2.1 (MIT). A local copy and license remain under `vendor/`
+for code-level and optional browser tests; they are not embedded in `index.html`
+and do not need to be uploaded with it.

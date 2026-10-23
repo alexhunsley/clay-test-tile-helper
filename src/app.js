@@ -65,8 +65,13 @@
   }
 
   function updateSummary() {
-    const { data, errors } = helper.validate(readForm());
     const summary = document.getElementById("layout-summary");
+    if (!globalThis.jspdf?.jsPDF) {
+      generate.disabled = preview.disabled = true;
+      summary.textContent = "PDF tools could not load. Check your internet connection and reload the page.";
+      return;
+    }
+    const { data, errors } = helper.validate(readForm());
     if (errors.count || errors.width || errors.height || errors.marginH || errors.marginV || errors.maxWidth || errors.maxHeight) {
       summary.textContent = "Enter a glaze count and footprint to plan your grid.";
       return;
@@ -129,6 +134,7 @@
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!globalThis.jspdf?.jsPDF) { updateSummary(); return; }
     const data = validate();
     if (!data) return;
     generate.disabled = true;
