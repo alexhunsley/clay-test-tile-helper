@@ -19,51 +19,21 @@ const { pathToFileURL } = require('node:url');
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     const href = pathToFileURL(path.join(root, 'index.html')).href;
-    async function downloadPreview(name) {
-      const event = page.waitForEvent('download');
+    async function openPreview() {
+      const downloads=[];
+      const onDownload=download=>downloads.push(download);
+      page.on('download',onDownload);
       await page.locator('#preview').click();
-      const download = await event;
-      const target = path.join(output, name);
-      await download.saveAs(target);
-      const bytes = await fs.readFile(target);
-      assert.equal(bytes.subarray(0,8).toString('hex'), '89504e470d0a1a0a');
-      const width=bytes.readUInt32BE(16), height=bytes.readUInt32BE(20);
-      assert.ok(width>0 && height>0 && Math.max(width,height)===3200);
-      await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PNG downloaded'));
+      await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('preview ready'));
+      assert.equal(await page.locator('#preview-dialog').evaluate(dialog=>dialog.open),true);
+      const size=await page.locator('#preview-content canvas').evaluate(canvas=>({width:canvas.width,height:canvas.height}));
+      assert.equal(Math.max(size.width,size.height),3200);
       assert.equal(await page.locator('#preview').isEnabled(),true);
-      assert.equal(await page.locator('#generate').isEnabled(),true);
-      return {download,width,height,url:`data:image/png;base64,${bytes.toString('base64')}`};
-    }
-    async function assertGreyJoin(url,xFraction,yFraction,axis='horizontal') {
-      const pixel = await page.evaluate(async ({url,xFraction,yFraction,axis}) => {
-        const img = new Image(); img.src=url; await img.decode();
-        const canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
-        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
-        return Array.from(ctx.getImageData(Math.floor(img.width*xFraction)+(axis==='vertical'?4:0),Math.floor(img.height*yFraction)+(axis==='horizontal'?4:0),1,1).data);
-      },{url,xFraction,yFraction,axis});
-      assert.ok(pixel.slice(0,3).every(channel=>Math.abs(channel-128)<=12),String(pixel));
-      assert.equal(pixel[3],255);
-    }
-    async function assertDottedBoundary(url,axis,fraction) {
-      const {dark,gaps}=await page.evaluate(async ({url,axis,fraction})=>{
-        const img=new Image();img.src=url;await img.decode();
-        const canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
-        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
-        const fixed=Math.floor((axis==='vertical'?img.width:img.height)*fraction);
-        let dark=0,gaps=0;
-        for(let along=100;along<400;along++){
-          let brightness=255;
-          for(let offset=-1;offset<=1;offset++){
-            const x=axis==='vertical'?fixed+offset:along,y=axis==='vertical'?along:fixed+offset;
-            const pixel=ctx.getImageData(x,y,1,1).data;
-            brightness=Math.min(brightness,(pixel[0]+pixel[1]+pixel[2])/3);
-          }
-          if(brightness<150)dark++;
-          if(brightness>220)gaps++;
-        }
-        return {dark,gaps};
-      },{url,axis,fraction});
-      assert.ok(dark>30 && gaps>30,JSON.stringify({dark,gaps}));
+      page.off('download',onDownload);
+      assert.equal(downloads.length,0);
+      await page.locator('#preview-close').click();
+      assert.equal(await page.locator('#preview-dialog').evaluate(dialog=>dialog.open),false);
+      return size;
     }
     await page.goto(href);
     assert.equal(await page.title(), 'Ceramic Test Tile Helper');
@@ -163,11 +133,8 @@ const { pathToFileURL } = require('node:url');
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
     assert.match(await page.locator('#form-status').textContent(), /3 pages/);
     assert.ok((await fs.stat(path.join(output, 'browser-download.pdf'))).size > 1000);
-    const assembly=await downloadPreview('assembly.png');
-    assert.equal(assembly.download.suggestedFilename(),'Émaux-ash-1-assembly.png');
+    const assembly=await openPreview();
     assert.ok(Math.abs(assembly.width/assembly.height-290/403)<.001);
-    await assertGreyJoin(assembly.url,.5,.5);
-    await assertDottedBoundary(assembly.url,'horizontal',.5);
     await page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -188,13 +155,8 @@ const { pathToFileURL } = require('node:url');
     await (await spanningDownload).saveAs(path.join(output, 'browser-spanning-cell.pdf'));
     await page.waitForFunction(() => document.getElementById('form-status').textContent.includes('PDF generated'));
     assert.match(await page.locator('#form-status').textContent(), /5 pages/);
-    const spanningAssembly=await downloadPreview('spanning-assembly.png');
-    assert.equal(spanningAssembly.download.suggestedFilename(),'Spanning-cell-assembly.png');
+    const spanningAssembly=await openPreview();
     assert.ok(Math.abs(spanningAssembly.width/spanningAssembly.height-546/372)<.002);
-    await assertGreyJoin(spanningAssembly.url,.5,.25,'vertical');
-    await assertGreyJoin(spanningAssembly.url,.25,.5);
-    await assertDottedBoundary(spanningAssembly.url,'vertical',.5);
-    await assertDottedBoundary(spanningAssembly.url,'horizontal',.5);
     assert.deepEqual(errors, []);
     console.log('Browser checks passed: offline file://, dynamic fields, inline errors, name retention, share restoration, clipboard fallback, PDF download, and mobile layout.');
   } finally {

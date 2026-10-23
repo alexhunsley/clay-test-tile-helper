@@ -37,13 +37,15 @@ Every cell has a centered footer in column.row order, followed by the column
 glaze name and row glaze name, e.g. `2.3 Glaze A / Glaze B`. Long labels wrap or
 shrink to stay inside the cell; very small cells require very small type.
 
-**Download preview image** downloads a PNG of the grid sheets joined in place,
+**Preview table assembly** opens a modal showing the grid sheets joined in place,
 with the page margins removed and matching semicircles touching. It uses the
 same table renderer as the PDF, including clipped cells, labels, watermarks and
-edge letters. The image's longest side is 3,200 pixels. Dotted lines mark
+edge letters. The canvas's longest side is 3,200 pixels. Dotted lines mark
 internal paper edges and bisect matching join
 markers in the preview only; the PDF has no dotted seam lines. It is an
-overview rather than a print-scale template. It uses system fonts, needs the
+overview rather than a print-scale template. The canvas is displayed directly:
+no image download or canvas pixel extraction is used, so it does not require
+canvas-export permission in LibreWolf. It uses system fonts, needs the
 CDN PDF library to load, and requires the same valid form values as PDF generation.
 
 **Tile decoder** opens a modal with two fields for a column.row tile code.
@@ -61,7 +63,7 @@ exactly on the cut edge; outside edges have no marker.
 In the PDF only, pages below the first sheet row have a dashed top cut guide,
 and pages after the first sheet column have a dashed left cut guide. Repeated
 "CUT HERE" labels sit just above or to the left of those edges, in the waste
-margins. The assembly PNG does not include these cut guides or labels.
+margins. The assembly preview does not include these cut guides or labels.
 Internal paper edges do not introduce extra grid
 lines. Row labels are rotated 90 degrees and
 appear only on the leftmost sheets. Column labels appear only on the topmost

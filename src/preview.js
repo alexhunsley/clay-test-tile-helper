@@ -2,7 +2,7 @@
   "use strict";
   const POINT_TO_MM = 25.4 / 72;
 
-  async function createAssemblyPng(data) {
+  function createAssemblyCanvas(data) {
     const helper = root.TileHelper;
     const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
     const scale = 3200 / Math.max(plan.tableWidth, plan.tableHeight);
@@ -105,9 +105,7 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
     ctx.restore();
-    return new Promise((resolve, reject) => canvas.toBlob(blob => {
-      if (blob) resolve(blob); else reject(new Error("PNG encoding failed."));
-    }, "image/png"));
+    return canvas;
   }
-  root.TileHelper.createAssemblyPng = createAssemblyPng;
+  root.TileHelper.createAssemblyCanvas = createAssemblyCanvas;
 })(globalThis);

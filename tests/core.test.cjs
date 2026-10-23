@@ -337,3 +337,39 @@ test('PDF cut guides cover only joining top and left edges and never enter the p
   assert.equal(preview.firstGridPage,1);
   assert.equal(preview.calls.some(c=>c.dash.length || (c.method==='text' && c.args[0]==='CUT HERE')),false);
 });
+
+test('assembly preview returns a drawn canvas without reading pixels or exporting an image',()=>{
+  vm.runInContext(fs.readFileSync(path.join(root,'src/preview.js'),'utf8'),browser,{filename:'src/preview.js'});
+  const originalDocument=browser.document;
+  try{
+    for(const changes of [{swell:false},{swell:true},{count:1,width:500,height:300,names:['Ash'],swell:true}]){
+      const {data}=helper.validate({...valid,...changes});
+      const plan=helper.layout(data.count,data.width,data.height,data.marginH,data.marginV,data);
+      const operations=[];
+      let depth=0;
+      const context=new Proxy({
+        save(){depth++;},
+        restore(){depth--;assert.ok(depth>=0);},
+        getImageData(){throw new Error('Preview must not read canvas pixels');}
+      },{get(target,key){return key in target?target[key]:(...args)=>operations.push({method:key,args});}});
+      const canvas={
+        width:0,height:0,
+        getContext(type){assert.equal(type,'2d');return context;},
+        toBlob(){throw new Error('Preview must not encode an image');},
+        toDataURL(){throw new Error('Preview must not export an image');}
+      };
+      browser.document={createElement(tag){assert.equal(tag,'canvas');return canvas;}};
+      assert.equal(helper.createAssemblyCanvas(data),canvas);
+      assert.equal(Math.max(canvas.width,canvas.height),3200);
+      assert.equal(depth,0);
+      assert.ok(operations.some(op=>op.method==='fillText'));
+      const transforms=operations.filter(op=>op.method==='setTransform');
+      assert.equal(transforms.length,plan.pages);
+      const scale=3200/Math.max(plan.tableWidth,plan.tableHeight);
+      transforms.forEach((op,i)=>{
+        close(op.args[4],(plan.columnBands[i%plan.across].offset-data.marginH)*scale);
+        close(op.args[5],(plan.rowBands[Math.floor(i/plan.across)].offset-data.marginV)*scale);
+      });
+    }
+  }finally{browser.document=originalDocument;}
+});

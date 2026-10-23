@@ -72,7 +72,7 @@
 
       <section class="output-panel" aria-labelledby="output-heading">
         <div><h2 id="output-heading">Printable test grid</h2><p id="layout-summary" class="hint" aria-live="polite"></p></div>
-        <div class="actions"><button id="generate" type="submit">Download PDF <span aria-hidden="true">↓</span></button><button id="preview" class="secondary" type="button">Download preview image <span aria-hidden="true">↓</span></button><button id="share" class="secondary" type="button">Share link to this setup <span aria-hidden="true">↗</span></button></div>
+        <div class="actions"><button id="generate" type="submit">Download PDF <span aria-hidden="true">↓</span></button><button id="preview" class="secondary" type="button">Preview table assembly</button><button id="share" class="secondary" type="button">Share link to this setup <span aria-hidden="true">↗</span></button></div>
         <p id="form-status" role="status" aria-live="polite"></p>
         <div id="share-result" hidden><label for="share-url">Filled-form link</label><input id="share-url" type="text" readonly><p class="hint" id="share-note"></p></div>
         <div class="decoder-actions"><button id="tile-decoder" class="secondary" type="button">Tile decoder</button></div>
@@ -89,6 +89,10 @@
     <p id="decoder-error" class="error" aria-live="polite"></p>
     <p id="decoder-result" role="status" aria-live="polite"></p>
     <button id="decoder-close" class="secondary" type="button">Close</button>
+  </dialog>
+  <dialog id="preview-dialog" aria-labelledby="preview-heading">
+    <div class="preview-heading"><h2 id="preview-heading">Table assembly preview</h2><button id="preview-close" class="secondary" type="button" autofocus>Close</button></div>
+    <div id="preview-content" aria-busy="false"></div>
   </dialog>
   <noscript>Please enable JavaScript to fill out the form and generate a PDF.</noscript>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js" integrity="sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3" crossorigin="anonymous"></script>

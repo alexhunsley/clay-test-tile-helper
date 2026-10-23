@@ -12,6 +12,8 @@
   const status = document.getElementById("form-status");
   const generate = document.getElementById("generate");
   const preview = document.getElementById("preview");
+  const previewDialog = document.getElementById("preview-dialog");
+  const previewContent = document.getElementById("preview-content");
   const shareResult = document.getElementById("share-result");
   const decoderButton = document.getElementById("tile-decoder");
   const decoderDialog = document.getElementById("decoder-dialog");
@@ -122,6 +124,8 @@
   decoderDialog.addEventListener("input", updateDecoder);
   document.getElementById("decoder-close").addEventListener("click", () => decoderDialog.close());
   decoderDialog.addEventListener("close", () => decoderButton.focus());
+  document.getElementById("preview-close").addEventListener("click", () => previewDialog.close());
+  previewDialog.addEventListener("close", () => preview.focus());
 
   form.addEventListener("input", (event) => {
     if (event.target === fields.count) syncNames();
@@ -163,25 +167,26 @@
     generate.disabled = preview.disabled = true;
     preview.textContent = "Making preview…";
     status.textContent = "Assembling the grid sheets…";
+    previewContent.textContent = "Assembling the grid sheets…";
+    previewContent.setAttribute("aria-busy", "true");
+    previewDialog.showModal();
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     try {
-      const blob = await helper.createAssemblyPng(data);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${filename(data.title)}-assembly.png`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-      status.textContent = "Table assembly PNG downloaded.";
+      const canvas = helper.createAssemblyCanvas(data);
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", `Assembled test tile grid for ${data.title}`);
+      previewContent.replaceChildren(canvas);
+      status.textContent = "Table assembly preview ready.";
     } catch (error) {
       console.error(error);
       status.classList.add("problem");
       status.textContent = "The assembly preview could not be generated. Please try again.";
+      previewContent.textContent = status.textContent;
     } finally {
       generate.disabled = preview.disabled = false;
-      preview.textContent = "Download preview image ↓";
+      previewContent.setAttribute("aria-busy", "false");
+      preview.textContent = "Preview table assembly";
+      if (!previewDialog.open) preview.focus();
     }
   });
 
