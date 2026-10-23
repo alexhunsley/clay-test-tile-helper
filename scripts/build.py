@@ -7,7 +7,6 @@ page = (ROOT / "src/index.template.html").read_text()
 for marker, filename in {
     "STYLES": "src/styles.css",
     "PDF_LIBRARY": "vendor/jspdf.umd.min.js",
-    "FONT": "vendor/noto-sans.js",
     "CORE": "src/core.js",
     "PREVIEW": "src/preview.js",
     "APP": "src/app.js",

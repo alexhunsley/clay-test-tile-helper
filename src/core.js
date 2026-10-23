@@ -11,11 +11,7 @@
   function metricsForHeaders() {
     if (!headerMetrics) {
       headerMetrics = new root.jspdf.jsPDF();
-      if (root.CERAMIC_FONT) {
-        headerMetrics.addFileToVFS("NotoSans-Regular.ttf", root.CERAMIC_FONT);
-        headerMetrics.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
-        headerMetrics.setFont("NotoSans", "normal");
-      }
+      headerMetrics.setFont("helvetica", "normal");
       headerMetrics.setFontSize(HEADER_FONT_SIZE);
     }
     return headerMetrics;
@@ -186,11 +182,7 @@
 
   function createPdf(data, JsPDF, renderOptions = {}) {
     const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: [PAGE.width, PAGE.height], precision: 6, compress: true });
-    if (root.CERAMIC_FONT) {
-      doc.addFileToVFS("NotoSans-Regular.ttf", root.CERAMIC_FONT);
-      doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
-      doc.setFont("NotoSans", "normal");
-    }
+    doc.setFont("helvetica", "normal");
     doc.setProperties({ title: data.title, subject: "Ceramic test tile glaze combinations", creator: "Ceramic Test Tile Helper" });
     const plan = layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
     const area = plan.area;

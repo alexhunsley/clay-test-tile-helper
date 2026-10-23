@@ -1,16 +1,8 @@
 (function (root) {
   "use strict";
   const POINT_TO_MM = 25.4 / 72;
-  let previewFont;
 
   async function createAssemblyPng(data) {
-    if (!previewFont) {
-      previewFont = (async () => {
-        const font = new FontFace("TileHelperPreview", `url(data:font/ttf;base64,${root.CERAMIC_FONT})`);
-        document.fonts.add(await font.load());
-      })().catch(error => { previewFont = null; throw error; });
-    }
-    await previewFont;
     const helper = root.TileHelper;
     const plan = helper.layout(data.count, data.width, data.height, data.marginH, data.marginV, data);
     const scale = 3200 / Math.max(plan.tableWidth, plan.tableHeight);
@@ -23,7 +15,7 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // This adapter renders the exact same drawing commands as the PDF. PDF
-    // font metrics supply wrapping and sizing; the embedded font paints pixels.
+    // font metrics supply wrapping and sizing; a system sans-serif paints pixels.
     class CanvasDocument {
       constructor() {
         this.metrics = new root.jspdf.jsPDF();
@@ -46,8 +38,6 @@
       addPage() { this.page++; this.startSheet(); return this; }
       getNumberOfPages() { return this.page; }
       setProperties() { return this; }
-      addFileToVFS(...args) { this.metrics.addFileToVFS(...args); return this; }
-      addFont(...args) { this.metrics.addFont(...args); return this; }
       setFont(...args) { this.metrics.setFont(...args); return this; }
       setFontSize(size) { this.fontSize = size; this.metrics.setFontSize(size); return this; }
       getTextWidth(value) { return this.metrics.getTextWidth(value); }
@@ -86,7 +76,7 @@
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(-(options.angle || 0) * Math.PI / 180);
-        ctx.font = `${this.fontSize * POINT_TO_MM}px TileHelperPreview`;
+        ctx.font = `${this.fontSize * POINT_TO_MM}px Helvetica, Arial, sans-serif`;
         ctx.fontKerning = "none";
         ctx.fillStyle = this.textColor;
         ctx.textAlign = options.align || "left";

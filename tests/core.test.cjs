@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'..');
 const browser={console,atob,btoa,Blob,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,navigator:{userAgent:'test'}};
 browser.window=browser; browser.self=browser;
 vm.createContext(browser);
-for(const file of ['vendor/jspdf.umd.min.js','vendor/noto-sans.js','src/core.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),browser,{filename:file});
+for(const file of ['vendor/jspdf.umd.min.js','src/core.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),browser,{filename:file});
 const helper=browser.TileHelper;
 const valid={title:'Studio tests',count:'6',width:'50',height:'60',marginH:'12',marginV:'12',swell:false,maxWidth:'0',maxHeight:'0',step1Desc:'bottom',step2Desc:'left side',names:['Ash','Blue','White','Green','Clear','Ochre']};
 fs.mkdirSync(path.join(root,'test-output'),{recursive:true});
@@ -99,7 +99,8 @@ test('PDF clips continuous grid lines at seams and preserves watermarks and firs
     const {pdf,calls,plan,firstGridPage}=render({...valid,swell});
     assert.equal(pdf.getNumberOfPages()-firstGridPage+1,plan.pages);
     close(pdf.internal.pageSize.getWidth(),297);close(pdf.internal.pageSize.getHeight(),210);
-    const output=pdf.output();assert.ok(output.startsWith('%PDF-') && output.includes('/FontFile2'));
+    const output=pdf.output();assert.ok(output.startsWith('%PDF-') && output.includes('/BaseFont /Helvetica'));
+    assert.equal(output.includes('/FontFile2'),false);
     assert.match(output,/re\nW\nn/);
     assert.doesNotMatch(output,/re\nS\nW/); // A stroked rectangle consumes the path and would disable clipping.
     const lines=calls.filter(c=>c.method==='line' && c.page>=firstGridPage && !c.dash.length);

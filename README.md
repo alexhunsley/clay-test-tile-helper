@@ -1,7 +1,7 @@
 # Ceramic Test Tile Helper
 
 Open **index.html** directly in a browser. It is a self-contained HTML file with
-all JavaScript and the PDF font embedded: no server, installation, or internet
+all JavaScript embedded: no server, installation, or internet
 connection is needed. It can also be hosted by any static web host.
 
 Enter a project title, glaze count, footprint width/height in millimetres,
@@ -40,8 +40,8 @@ same table renderer as the PDF, including clipped cells, labels, watermarks and
 edge letters. The image's longest side is 3,200 pixels. Dotted lines mark
 internal paper edges and bisect matching join
 markers in the preview only; the PDF has no dotted seam lines. It is an
-overview rather than a print-scale template. It works offline with the bundled
-font and requires the same valid form values as PDF generation.
+overview rather than a print-scale template. It works offline with system
+fonts and requires the same valid form values as PDF generation.
 
 **Tile decoder** opens a modal with two fields for a column.row tile code.
 It uses the current setup's glaze names to show "Column glaze below Row glaze."
@@ -73,8 +73,8 @@ Printer scaling affects physical dimensions; the page cannot override it.
 Row and column headers both use 10 pt text, without reducing their font size.
 Long names wrap and grow the header bands into the available table area;
 the tile cells retain their footprint (or expanded size). Full glaze names are
-also included in the checklist. Supported font coverage is Noto Sans (Latin, Greek, Cyrillic,
-and related glyphs), rather than every script or emoji.
+also included in the checklist. The PDF uses built-in Helvetica; the preview
+uses Helvetica or a system sans-serif fallback. No font files are bundled.
 
 At the default margins, the usable grid area on the top-left sheet is
 261 × 178 mm for short, single-line headers, after allowing for labels and
@@ -121,6 +121,4 @@ It checks the bundled page offline via `file://`, including PDF downloads,
 field validation, share links, name retention, and mobile layout. Test PDFs and
 screenshots are written to the ignored `test-output/` folder.
 
-Vendor dependencies: jsPDF 4.2.1 (MIT) and Noto Sans Regular (SIL Open Font
-License), with licenses included under `vendor/`. The original Noto Sans TTF is
-stored as base64 in `vendor/noto-sans.js` so the final page stays offline.
+Vendor dependency: jsPDF 4.2.1 (MIT), with its license included under `vendor/`.
